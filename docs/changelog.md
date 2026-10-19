@@ -2,6 +2,8 @@
 
 ## 19 October 2026
 
+- Added visual experiments for derivatives, signed integrals, correlation, ReLU, backpropagation and training a decision boundary, using the guide's actual neural network.
+- Linked the draggable dot-product diagram to its cosine curve, with keyboard controls and layouts that adapt to the available reading width.
 - Added eight interactive visual walkthroughs: vector projection, normalization, matrix area, trigonometry, Bayes, gradient descent, neural weighted sums and softmax.
 - Added execution trace replay for editable JavaScript, Python, C and Rust examples, with highlighted source lines and bounded runtime snapshots.
 - Moved explanatory prose beside the notation and gave practice labs a distinct warm background.

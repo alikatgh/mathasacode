@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Button } from '../components/ui/button';
-import { ExperimentFrame, RangeControl, Metric } from './scene-ui.jsx';
+import { ExperimentFrame, RangeControl, Metric, SvgHandle } from './scene-ui.jsx';
 import {
-  INITIAL_DOT_ANGLE, rotateDotVector, normalizationState, matrixTransformState, unitCircleState,
+  INITIAL_DOT_ANGLE, rotateDotVector, dotAngleForPoint, normalizationState, matrixTransformState, unitCircleState,
 } from './geometry-model.mjs';
 
 const A = 'var(--scene-a)';
@@ -28,8 +28,8 @@ function Arrow({ from, to, color = A, width = 3, opacity = 1 }) {
   </g>;
 }
 
-function Plot({ label, children }) {
-  return <svg className="experiment-plot" viewBox="0 0 360 260" width="100%" role="img" aria-label={label} style={{ fontFamily: 'inherit', overflow: 'visible' }}>
+function Plot({ label, children, interactive = false }) {
+  return <svg className="experiment-plot" viewBox="0 0 360 260" width="100%" role={interactive ? 'group' : 'img'} aria-label={label} style={{ fontFamily: 'inherit', overflow: 'visible' }}>
     <title>{label}</title>
     {children}
   </svg>;
@@ -49,7 +49,9 @@ function Metrics({ children }) {
 const dotCopy = {
   en: {
     title: 'A dot product is a signed projection',
-    description: 'Keep a fixed. Rotate b and watch how much of it points along a.',
+    description: 'Drag b around the circle. The projection and the cosine curve describe the same dot product.',
+    handle: 'Rotate vector b. Drag the point or use the arrow keys.',
+    hint: 'Drag the ring on b, or focus it and use arrow keys. The radius stays 5.',
     angle: 'Angle from a to b', presets: ['Aligned', 'Perpendicular', 'Opposite'],
     steps: ['Fix the reference vector a', 'Rotate the second vector b', 'Drop a perpendicular onto a', 'Weight the signed projection'],
     captions: [
@@ -64,7 +66,9 @@ const dotCopy = {
   },
   zh: {
     title: '点积是带符号的投影',
-    description: '固定 a，旋转 b，观察 b 沿 a 方向的分量。',
+    description: '沿圆拖动 b。几何投影与余弦曲线表示同一个点积。',
+    handle: '旋转向量 b。拖动圆点或使用方向键。',
+    hint: '拖动 b 上的圆环，也可以聚焦圆环后使用方向键。半径始终为 5。',
     angle: '从 a 到 b 的夹角', presets: ['同向', '垂直', '反向'],
     steps: ['固定参考向量 a', '旋转第二个向量 b', '向 a 所在直线作垂线', '计算带符号的点积'],
     captions: [
@@ -92,6 +96,18 @@ export function DotProjection({ language = 'en' }) {
   const axisStart = point([-2.6, -5.2]);
   const axisEnd = point([2.6, 5.2]);
   const sign = Math.abs(state.dot) < 1e-9 ? t.zero : state.dot > 0 ? t.positive : t.negative;
+  const moveVector = ({ x, y }) => {
+    const angle = dotAngleForPoint([(x - origin[0]) / 18, (origin[1] - y) / 18]);
+    if (angle === null) return;
+    setDegrees(angle);
+    setStep(value => Math.max(1, value));
+  };
+  const curveX = angle => 30 + (angle + 180) * 300 / 360;
+  const curveY = angle => 54 - 30 * Math.cos(angle * Math.PI / 180);
+  const cosinePath = Array.from({ length: 121 }, (_, i) => {
+    const angle = -180 + i * 3;
+    return `${i ? 'L' : 'M'}${curveX(angle)},${curveY(angle)}`;
+  }).join(' ');
   // A small right-angle corner uses the actual perpendicular and axis directions.
   const axisUnit = state.a.map(value => value / state.axisLength);
   const residualLength = Math.hypot(...state.residual);
@@ -106,13 +122,17 @@ export function DotProjection({ language = 'en' }) {
     controls={<>
       <RangeControl label={t.angle} value={degrees} min={-180} max={180} step={0.1} onChange={setDegrees} display={`${fmt(degrees, 1)}°`} />
       <div className="experiment-presets">{[0, 90, 180].map((value, i) => <Button key={value} type="button" variant="outline" size="sm" onClick={() => setDegrees(value)}>{t.presets[i]}</Button>)}</div>
+      <p className="experiment-drag-hint">{t.hint}</p>
     </>}
     readout={<>
       <Metrics><Metric label={t.vectorA} value={pair(state.a)} />{step >= 1 && <Metric label={t.vectorB} value={pair(state.b)} />}{step >= 2 && <Metric label={t.projection} value={pair(state.projection)} />}{step >= 3 && <><Metric label={t.signed} value={fmt(state.signedLength)} /><Metric label={t.dot} value={fmt(state.dot)} /></>}</Metrics>
       {step >= 3 && <p>{sign}</p>}
+      <p className="experiment-formula">a · b = |a| |b| cos θ<br />≈ √5 × 5 × {fmt(state.cosine)} ≈ <strong>{fmt(state.dot)}</strong></p>
     </>} caption={t.captions[step]}>
-    <Plot label={`${t.plot}. ${t.steps[step]}. ${step >= 3 ? `${t.dot} = ${fmt(state.dot)}. ${sign}` : ''}`}>
+    <div className="experiment-plot-stack">
+    <Plot interactive label={`${t.plot}. ${t.steps[step]}. ${step >= 3 ? `${t.dot} = ${fmt(state.dot)}. ${sign}` : ''}`}>
       <Grid origin={origin} scale={18} xs={[-4, -2, 0, 2, 4]} ys={[-4, -2, 0, 2, 4, 6]} xMin={-7} xMax={7} yMin={-5} yMax={6} />
+      <circle cx={origin[0]} cy={origin[1]} r="90" stroke={GRID} fill="none" strokeDasharray="2 5" />
       <line x1={axisStart[0]} y1={axisStart[1]} x2={axisEnd[0]} y2={axisEnd[1]} stroke="currentColor" opacity="0.25" strokeDasharray="4 5" />
       {step >= 2 && <>
         <line x1={b[0]} y1={b[1]} x2={p[0]} y2={p[1]} stroke={B} strokeWidth="2" strokeDasharray="5 5" />
@@ -123,11 +143,23 @@ export function DotProjection({ language = 'en' }) {
       </>}
       <Arrow from={origin} to={a} color={A} />
       <text x={a[0] + 12} y={a[1] + 10} fill={A} fontSize="20">a</text>
-      {step >= 1 && <><Arrow from={origin} to={b} color={B} /><text x={clamp(b[0] + 14, 25, 335)} y={clamp(b[1] + 2, 24, 243)} fill={B} fontSize="20">b</text></>}
+      <Arrow from={origin} to={b} color={B} opacity={step === 0 ? 0.4 : 1} />
+      <text x={clamp(b[0] + 16, 25, 335)} y={clamp(b[1] + 2, 24, 243)} fill={B} fontSize="20">b</text>
+      <SvgHandle x={b[0]} y={b[1]} label={`${t.handle} θ = ${fmt(degrees, 1)}°`} color={B} onMove={moveVector}
+        onNudge={(dx, dy) => { setDegrees(value => clamp(value + dx - dy, -180, 180)); setStep(value => Math.max(1, value)); }} />
       <circle cx={origin[0]} cy={origin[1]} r="3" fill="currentColor" />
       <text x="159" y="161" fill="currentColor" fontSize="18">0</text>
       {step >= 3 && <text x="24" y="32" fill="currentColor" fontSize="21">a · b = {fmt(state.dot)}</text>}
     </Plot>
+    <svg viewBox="0 0 360 120" role="img" aria-label={`${t.dot} = √5 × 5 × cos θ; θ = ${fmt(degrees, 1)}°; ${t.dot} = ${fmt(state.dot)}`}>
+      <line x1="30" y1="54" x2="330" y2="54" stroke={GRID} />
+      <line x1="180" y1="20" x2="180" y2="88" stroke={GRID} />
+      <path d={cosinePath} fill="none" stroke={B} strokeWidth="2.5" />
+      <line x1={curveX(degrees)} y1="54" x2={curveX(degrees)} y2={curveY(degrees)} stroke={B} strokeDasharray="3 3" />
+      <circle cx={curveX(degrees)} cy={curveY(degrees)} r="5" fill={B} stroke="var(--card)" strokeWidth="1.5" />
+      <g fill="currentColor" fontSize="18"><text x="30" y="110" textAnchor="middle">−180°</text><text x="180" y="110" textAnchor="middle">0°</text><text x="330" y="110" textAnchor="middle">180°</text><text x="27" y="18">a · b</text><text x="335" y="60">θ</text></g>
+    </svg>
+    </div>
   </ExperimentFrame>;
 }
 

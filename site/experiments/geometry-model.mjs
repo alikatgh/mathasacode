@@ -39,6 +39,13 @@ export function dotProjection(axis, input) {
 // The initial angle reproduces a = [1, 2], b = [3, 4], rather than rounding it.
 export const INITIAL_DOT_ANGLE = (Math.atan2(4, 3) - Math.atan2(2, 1)) * 180 / Math.PI;
 
+export function dotAngleForPoint(point) {
+  const [x, y] = vector(point, 'point', 2);
+  if (Math.hypot(x, y) < 1e-9) return null;
+  const angle = (Math.atan2(y, x) - Math.atan2(2, 1)) * 180 / Math.PI;
+  return ((angle + 180) % 360 + 360) % 360 - 180;
+}
+
 export function rotateDotVector(degrees) {
   finite(degrees, 'angle', -180, 180);
   const radians = Math.atan2(2, 1) + degrees * Math.PI / 180;

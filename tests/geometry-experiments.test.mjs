@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  dotProjection, INITIAL_DOT_ANGLE, rotateDotVector, normalizeVector, normalizationState,
+  dotProjection, INITIAL_DOT_ANGLE, rotateDotVector, dotAngleForPoint, normalizeVector, normalizationState,
   transformPoint, matrixTransformState, unitCircleState,
 } from '../site/experiments/geometry-model.mjs';
 
@@ -33,6 +33,24 @@ test('projection reconstructs the input and its residual is orthogonal to the ax
     close(state.dot, state.axisLength * state.signedLength);
     close(state.dot, state.axisLength * state.inputLength * Math.cos(angle * Math.PI / 180));
   }
+});
+
+test('dragged directions round-trip through the fixed-radius vector without changing its length', () => {
+  close(dotAngleForPoint([3, 4]), INITIAL_DOT_ANGLE);
+  close(dotAngleForPoint([1, 2]), 0);
+  close(Math.abs(dotAngleForPoint([-1, -2])), 180);
+  assert.equal(dotAngleForPoint([0, 0]), null, 'the origin cannot invent a direction');
+  for (let angle = -179; angle <= 179; angle += 7) {
+    const initial = rotateDotVector(angle);
+    for (const scale of [0.01, 1, 100]) {
+      const recovered = dotAngleForPoint(initial.b.map(value => value * scale));
+      close(recovered, angle);
+      const state = rotateDotVector(recovered);
+      close(Math.hypot(...state.b), 5);
+      close(state.dot, initial.dot);
+    }
+  }
+  assert.throws(() => dotAngleForPoint([Infinity, 0]), RangeError);
 });
 
 test('projection handles zero input, orthogonality, and opposite signs explicitly', () => {
