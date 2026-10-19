@@ -99,7 +99,7 @@ export function DotProjection({ language = 'en' }) {
   const moveVector = ({ x, y }) => {
     const angle = dotAngleForPoint([(x - origin[0]) / 18, (origin[1] - y) / 18]);
     if (angle === null) return;
-    setDegrees(angle);
+    setDegrees(Math.round(angle * 10) / 10);
     setStep(value => Math.max(1, value));
   };
   const curveX = angle => 30 + (angle + 180) * 300 / 360;
