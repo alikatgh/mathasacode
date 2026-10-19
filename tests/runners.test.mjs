@@ -66,6 +66,43 @@ test('Stop and invalid source resolve without starting a runtime or request', as
   assert.equal((await runCode({ language: 'javascript', source: 'x'.repeat(65537) }).promise).status, 'error');
 });
 
+test('worker timeout retains partial trace, capture limit and bounded warnings', async () => {
+  const names = ['document', 'fetch', 'addEventListener', 'removeEventListener', 'MessageChannel'];
+  const saved = Object.fromEntries(names.map(name => [name, globalThis[name]]));
+  let ready;
+  const frame = {
+    style: {}, setAttribute() {}, remove() {},
+    contentWindow: { postMessage(_payload, _origin, [port]) {
+      port.peer.onmessage({ data: { type: 'trace', frame: { line: 1, event: 'line', locals: { x: '1' } } } });
+      port.peer.onmessage({ data: { type: 'timeout', traceTruncated: true, traceWarnings: ['Unknown pointer values omitted.', 'x'.repeat(300)] } });
+      // Late messages after teardown cannot mutate the retained result.
+      port.peer.onmessage({ data: { type: 'trace', frame: { line: 2, event: 'line', locals: {} } } });
+    } },
+  };
+  globalThis.document = { createElement: () => frame, body: { append: () => queueMicrotask(() => ready?.({ source: frame.contentWindow, data: { type: 'math-as-code-ready' } })) } };
+  globalThis.addEventListener = (_type, listener) => { ready = listener; };
+  globalThis.removeEventListener = () => {};
+  globalThis.MessageChannel = class { constructor() { this.port1 = { start() {}, close() {}, postMessage() {} }; this.port2 = { peer: this.port1 }; } };
+  const worker = new TextEncoder().encode('// isolated worker fixture');
+  const hash = Buffer.from(await crypto.subtle.digest('SHA-256', worker)).toString('hex');
+  globalThis.fetch = async path => path.endsWith('manifest.json')
+    ? Response.json({ languages: { javascript: [] }, worker: { path: '/fixture-worker.js', bytes: worker.length, sha256: hash } })
+    : new Response(worker);
+  try {
+    const result = await runCode({ language: 'javascript', source: 'while (true) {}', trace: true }).promise;
+    assert.equal(result.status, 'timeout');
+    assert.equal(result.traceTruncated, true);
+    assert.equal(result.traceFrames.length, 1);
+    assert.equal(result.traceWarnings[0], 'Unknown pointer values omitted.');
+    assert.equal(result.traceWarnings[1].length, 240);
+  } finally {
+    for (const name of names) {
+      if (saved[name] === undefined) delete globalThis[name];
+      else globalThis[name] = saved[name];
+    }
+  }
+});
+
 test('Rust sends current edited source once, omits credentials and surfaces service compile errors', async () => {
   const savedFetch = globalThis.fetch;
   const savedNow = Date.now;

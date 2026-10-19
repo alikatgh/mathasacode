@@ -1,8 +1,10 @@
 import { RUN_LIMITS, outputBuffer, validateRun } from './limits.mjs';
+import { createTraceCollector } from './trace-runtime.mjs';
+import { traceOutputFilter } from './trace-wire.mjs';
 export { RUN_LIMITS } from './limits.mjs';
 
 export function runnerInfo(language) {
-  if (language === 'rust') return { label: 'Rust Playground', remote: true, note: 'Run sends this code to the public Rust Playground. Stop stops waiting; the service may finish the run. Do not send private data.' };
+  if (language === 'rust') return { label: 'Rust Playground', remote: true, note: 'Run or Trace sends this code to the public Rust Playground. Stop stops waiting; the service may finish the run. Do not send private data.' };
   if (language === 'python') return { label: 'Python · CPython', remote: false, note: 'Runs in your browser. First run downloads Python. Standard library and guide helpers only; no network, file writes, or interactive input.' };
   if (language === 'c') return { label: 'C · Clang', remote: false, note: 'Compiles and runs in your browser. First run downloads the C compiler. Standard library only; include main(). No interactive input.' };
   return { label: 'JavaScript · QuickJS', remote: false, note: 'Runs in your browser. Console output and the last expression are shown. No DOM, network, or interactive input.' };
@@ -52,16 +54,19 @@ async function getAssets(language, signal, onStatus) {
 }
 
 /** One explicitly requested run per page. Every task owns and tears down its worker/frame. */
-export function runCode({ language, source, onOutput, onStatus } = {}) {
+export function runCode({ language, source, onOutput, onStatus, trace = false, onTrace } = {}) {
   currentTask?.stop();
   const abort = new AbortController();
   const buffer = outputBuffer();
+  const collector = createTraceCollector(frame => { if (!finished) onTrace?.(frame); });
   let frame;
   let port;
   let readyListener;
   let readyResolve;
   let timer;
   let finished = false;
+  let traceWarnings = [];
+  const readWarnings = value => Array.isArray(value) ? value.filter(item => typeof item === 'string').slice(0, 12).map(item => item.slice(0, 240)) : [];
   let resolve;
   const promise = new Promise(done => { resolve = done; });
   const task = { promise, stop: () => finish('stopped', 'Stopped.') };
@@ -76,7 +81,7 @@ export function runCode({ language, source, onOutput, onStatus } = {}) {
     port?.close();
     frame?.remove();
     if (currentTask === task) currentTask = undefined;
-    resolve({ status, output: buffer.text, error });
+    resolve({ status, output: buffer.text, error, ...(trace ? { traceFrames: collector.frames, traceTruncated: collector.truncated, traceWarnings } : {}) });
   }
   function append(text) {
     if (finished) return;
@@ -95,13 +100,27 @@ export function runCode({ language, source, onOutput, onStatus } = {}) {
       if (finished) return;
       if (language === 'rust') {
         if (Date.now() < nextRustRun) throw new Error(`Wait ${Math.ceil((nextRustRun - Date.now()) / 1000)} seconds before another Rust run.`);
+        let executableSource = source;
+        let filter;
+        if (trace) {
+          timeout(RUN_LIMITS.loadingMs, 'Trace preparation did not finish within 90 seconds.');
+          onStatus?.('Preparing Rust execution trace…');
+          const { assets } = await getAssets('rust', abort.signal, onStatus);
+          if (finished) return;
+          const { instrumentCompiledTrace } = await import('./trace-compiled.mjs');
+          const prepared = await instrumentCompiledTrace('rust', source, assets);
+          if (finished) return;
+          executableSource = prepared.source;
+          traceWarnings = readWarnings(prepared.warnings);
+          filter = traceOutputFilter({ prefix: prepared.markerPrefix, onFrame: frame => collector.push(frame), onOutput: append });
+        }
         nextRustRun = Date.now() + RUN_LIMITS.remoteCooldownMs;
         onStatus?.('Running on Rust Playground…');
         timeout(RUN_LIMITS.remoteMs, 'Rust Playground did not respond within 20 seconds. The service may finish the run.');
         const response = await fetch('https://play.rust-lang.org/execute', {
           method: 'POST', credentials: 'omit', signal: abort.signal,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ channel: 'stable', mode: 'debug', edition: '2021', crateType: 'bin', tests: false, backtrace: false, code: source }),
+          body: JSON.stringify({ channel: 'stable', mode: 'debug', edition: '2021', crateType: 'bin', tests: false, backtrace: false, code: executableSource }),
         });
         if (!response.ok) throw new Error(`Rust Playground is unavailable (${response.status}). No automatic retry was made.`);
         // Bound the streamed response before parsing; hostile output cannot grow page memory without limit.
@@ -116,7 +135,9 @@ export function runCode({ language, source, onOutput, onStatus } = {}) {
           chunks.push(chunk.value);
         }
         const result = JSON.parse(await new Blob(chunks).text());
-        append(String(result.stdout || '') + String(result.stderr || ''));
+        if (filter) { filter.write(String(result.stdout || '')); filter.flush(); }
+        else append(String(result.stdout || ''));
+        append(String(result.stderr || ''));
         finish(result.success ? 'success' : 'error', result.success ? '' : 'Rust compilation or execution failed. See the output.');
         return;
       }
@@ -151,17 +172,22 @@ export function runCode({ language, source, onOutput, onStatus } = {}) {
       port.onmessage = ({ data }) => {
           if (finished || !data || typeof data.type !== 'string') return;
           if (data.type === 'output') append(typeof data.text === 'string' ? data.text.slice(0, RUN_LIMITS.outputChars + 1) : '');
+          else if (data.type === 'trace' && trace) collector.push(data.frame);
           else if (data.type === 'status') onStatus?.(String(data.text || 'Starting runtime…').slice(0, 100));
           else if (data.type === 'started') {
             onStatus?.(language === 'c' ? 'Compiling and running…' : 'Running…');
             timeout(RUN_LIMITS.executionMs, 'Stopped after the 5 second execution limit.');
-          } else if (data.type === 'done') finish('success');
-          else if (data.type === 'error') finish('error', String(data.error || 'Execution failed.').slice(0, RUN_LIMITS.outputChars));
-          else if (data.type === 'timeout') finish('timeout', 'Stopped after the 5 second execution limit.');
+          } else if (['done', 'error', 'timeout'].includes(data.type)) {
+            if (data.traceTruncated) collector.truncate();
+            traceWarnings = readWarnings(data.traceWarnings);
+            if (data.type === 'done') finish('success');
+            else if (data.type === 'timeout') finish('timeout', 'Stopped after the 5 second execution limit.');
+            else finish('error', String(data.error || 'Execution failed.').slice(0, RUN_LIMITS.outputChars));
+          }
       };
       port.start();
       const transfer = Object.values(assets);
-      frame.contentWindow.postMessage({ type: 'math-as-code-start', workerSource, payload: { language, source, assets }, transfer }, '*', [channel.port2, ...transfer]);
+      frame.contentWindow.postMessage({ type: 'math-as-code-start', workerSource, payload: { language, source, assets, trace }, transfer }, '*', [channel.port2, ...transfer]);
     } catch (error) {
       if (!finished) finish('error', error?.message || String(error));
     }

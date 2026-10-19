@@ -1,5 +1,7 @@
 import { WASI, File, OpenFile, Directory, PreopenDirectory, ConsoleStdout, wasi as defs } from '@bjorn3/browser_wasi_shim';
-import { RUN_LIMITS, boundWasmMemory } from './limits.mjs';
+import { RUN_LIMITS, boundWasmMemory, validateRun } from './limits.mjs';
+import { createTraceCollector } from './trace-runtime.mjs';
+import { createPythonTraceOutput, pythonTraceBootstrap } from './trace-python.mjs';
 
 const bootstrap = `import ast
 _source = open('/example.py', encoding='utf-8').read()
@@ -16,7 +18,13 @@ else:
 `;
 
 /** CPython compiled to plain WASI: guest code has no JavaScript interoperability. */
-export async function executePython(source, assets, emit, started = () => {}) {
+export async function executePython(source, assets, emit, started = () => {}, options = {}) {
+  const trace = createTraceCollector(options);
+  try { if (options.trace) validateRun('python', source); }
+  catch (error) { Object.assign(error, trace.status); throw error; }
+  const marker = `\x1eMAC_TRACE_${Math.random().toString(36).slice(2)}:`;
+  const stream = options.trace ? createPythonTraceOutput(marker, trace, emit) : null;
+  const tracedBootstrap = options.trace ? pythonTraceBootstrap(marker) + bootstrap.replace('if _tree.body', '_trace_sys.settrace(_make_tracer())\nif _tree.body') : bootstrap;
   const readonly = bytes => new File(bytes, { readonly: true });
   const text = value => readonly(new TextEncoder().encode(value));
   const directory = entries => new Directory(new Map(entries));
@@ -27,8 +35,9 @@ export async function executePython(source, assets, emit, started = () => {}) {
     ])]])]])],
     ['examples', directory([['__init__.py', text('')], ['notation.py', readonly(assets['notation.py'])]])],
     ['example.py', text(source)],
+    ...(options.trace ? [['trace-bootstrap.py', text(tracedBootstrap)]] : []),
   ]));
-  const engine = new WASI(['python', '-B', '-c', bootstrap], [
+  const engine = new WASI(options.trace ? ['python', '-B', '/trace-bootstrap.py'] : ['python', '-B', '-c', bootstrap], [
     'PYTHONHOME=/usr/local', 'PYTHONPATH=/:/usr/local/lib/python312.zip',
     'PYTHONIOENCODING=utf-8', 'PYTHONDONTWRITEBYTECODE=1',
   ], [new OpenFile(readonly(new Uint8Array())), new ConsoleStdout(() => {}), new ConsoleStdout(() => {}), root], { debug: false });
@@ -66,7 +75,9 @@ export async function executePython(source, assets, emit, started = () => {}) {
       const pointer = view.getUint32(iovs + index * 8, true);
       const length = view.getUint32(iovs + index * 8 + 4, true);
       const limited = Math.min(length, RUN_LIMITS.outputChars + 1);
-      emit(decoders[fd].decode(new Uint8Array(memory, pointer, limited), { stream: true }));
+      const decoded = decoders[fd].decode(new Uint8Array(memory, pointer, limited), { stream: true });
+      if (stream) stream.append(fd, decoded);
+      else emit(decoded);
       if (length > limited) throw new Error('Output stopped at 32 KB.');
       total += length;
     }
@@ -79,6 +90,14 @@ export async function executePython(source, assets, emit, started = () => {}) {
   if (declared.some(item => item.module !== 'wasi_snapshot_preview1' || item.kind !== 'function')) throw new Error('Unexpected Python host import.');
   const instance = await WebAssembly.instantiate(module, { wasi_snapshot_preview1: imports });
   started();
-  const exitCode = engine.start(instance);
-  if (exitCode !== 0) throw new Error(`Python exited with code ${exitCode}. See the output.`);
+  try {
+    const exitCode = engine.start(instance);
+    if (exitCode !== 0) throw new Error(`Python exited with code ${exitCode}. See the output.`);
+    return trace.status;
+  } catch (error) {
+    Object.assign(error, trace.status);
+    throw error;
+  } finally {
+    stream?.flush();
+  }
 }

@@ -2,6 +2,7 @@ import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { conceptMaps, renderConcept } from './concept-maps.mjs';
+import { experimentForConcept } from './experiments/index.jsx';
 
 function ConceptFigure({ kind, language }) {
   const drawing = useRef(null);
@@ -40,6 +41,8 @@ function ConceptFigure({ kind, language }) {
 }
 
 export function ConceptMap({ kind, topic, language }) {
+  const experiment = experimentForConcept(kind);
+  const Scene = experiment?.Component;
   const [mounted, setMounted] = useState(false);
   const [host] = useState(() => {
     const element = topic.element.ownerDocument.createElement('div');
@@ -55,5 +58,5 @@ export function ConceptMap({ kind, topic, language }) {
     setMounted(true);
     return () => host.remove();
   }, [topic, host]);
-  return mounted ? createPortal(<ConceptFigure kind={kind} language={language} />, host) : null;
+  return mounted ? createPortal(Scene ? <Scene language={language} /> : <ConceptFigure kind={kind} language={language} />, host) : null;
 }

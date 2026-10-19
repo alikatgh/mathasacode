@@ -1,12 +1,14 @@
 import React, { Component, lazy, Suspense, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { createRoot } from 'react-dom/client';
-import { Check, Copy, MoreHorizontal, Pencil, Play, RotateCcw, Square } from 'lucide-react';
+import { Check, Copy, MoreHorizontal, Pencil, Play, RotateCcw, Square, Workflow } from 'lucide-react';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from './components/ui/select';
 import { Button } from './components/ui/button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuCheckboxItem, DropdownMenuSeparator } from './components/ui/dropdown-menu';
 import { runCode, runnerInfo } from './runners/controller.mjs';
 import { prepareRunnableExample } from '../scripts/run-context.mjs';
+import CodeTrace, { TraceLineFocus } from './code-trace.jsx';
+import { currentTrace, mapTraceFrames, traceStep } from './trace-view-model.mjs';
 const EditableCode = lazy(() => import('./editable-code.jsx'));
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/ui/tooltip';
 import {
@@ -27,20 +29,48 @@ const labels = {
     copying: 'Copying…', unavailable: 'Copy unavailable. Select the code and copy it with your keyboard.',
     wrap: 'Wrap lines', fold: 'Fold all', unfold: 'Expand all', more: 'Code options',
     edit: 'Edit code', done: 'Done editing', reset: 'Reset example', run: 'Run', stop: 'Stop',
-    output: 'Output', noOutput: 'Finished with no output.', previous: 'Output from an earlier version of this code.', loading: 'Opening editor…',
+    output: 'Output', completeOutput: 'Complete run output', starting: 'Starting…', stopped: 'Stopped.',
+    noOutput: 'Finished with no output.', previous: 'Output from an earlier version of this code.', loading: 'Opening editor…',
     state: { success: 'Finished', error: 'Error', stopped: 'Stopped', timeout: 'Time limit' },
     example: language => `${language} code example`,
-    help: 'Choose Edit to change the code, then Run to see its output. Tab moves between controls. Copy includes every line, including folded code. Edits stay while you browse this page.',
+    help: 'Choose Edit to change the code, then Run to see its output or Execution trace to record and replay its executed lines and values. Tab moves between controls. Copy includes every line, including folded code. Edits stay while you browse this page.',
+    trace: {
+      action: 'Record execution trace', unavailable: 'Execution trace is unavailable for this illustration', title: 'Execution trace',
+      replay: 'Trace replay · recorded runtime values at each event. Output below is the complete run.',
+      recording: 'Recording…', recordingNote: 'Running once to capture executed lines. Use Stop to end the run.',
+      counter: (step, count) => `${step} / ${count}`, noSteps: '0 steps', steps: 'Trace replay steps',
+      previous: 'Previous', next: 'Next', line: line => `Line ${line}`, returnLine: line => `Return from line ${line}`,
+      activeLine: 'Current trace line', values: 'Recorded variables', noValues: 'No variables were captured at this event.',
+      empty: 'No executed source lines were captured. Function definitions may need a call before their bodies can run.',
+      failed: 'No executed source lines were captured. See the run status and output below.',
+      mappingUnavailable: 'The recorded code could not be matched to this source. No source lines are highlighted.',
+      truncated: 'Trace reached its capture limit. Only the recorded steps are available.',
+      partial: 'The run ended before completion. These are the steps captured before it stopped.',
+    },
   },
   zh: {
     languages: '代码语言', controls: '代码示例控件', copy: '复制代码', copied: '已复制',
     copying: '复制中…', unavailable: '无法复制。请选择代码并使用键盘复制。',
     wrap: '自动换行', fold: '全部折叠', unfold: '全部展开', more: '代码选项',
     edit: '编辑代码', done: '完成编辑', reset: '重置示例', run: '运行', stop: '停止',
-    output: '输出', noOutput: '运行完成，无输出。', previous: '此输出来自修改前的代码。', loading: '正在打开编辑器…',
+    output: '输出', completeOutput: '完整运行输出', starting: '正在启动…', stopped: '已停止。',
+    noOutput: '运行完成，无输出。', previous: '此输出来自修改前的代码。', loading: '正在打开编辑器…',
     state: { success: '已完成', error: '错误', stopped: '已停止', timeout: '超时' },
     example: language => `${language} 代码示例`,
-    help: '选择编辑来修改代码，然后运行以查看输出。使用 Tab 在控件间移动。复制包含全部代码，包括折叠内容。在本页浏览时保留修改。',
+    help: '选择编辑来修改代码，然后运行以查看输出，或选择执行轨迹来记录并回放执行过的代码行和变量值。使用 Tab 在控件间移动。复制包含全部代码，包括折叠内容。在本页浏览时保留修改。',
+    trace: {
+      action: '记录执行轨迹', unavailable: '此示例无法记录执行轨迹', title: '执行轨迹',
+      replay: '轨迹回放 · 显示每个事件记录的运行时变量值。下方输出来自完整运行。',
+      recording: '正在记录…', recordingNote: '正在运行一次以记录执行过的代码行。选择停止可结束运行。',
+      counter: (step, count) => `${step} / ${count}`, noSteps: '0 步', steps: '轨迹回放步骤',
+      previous: '上一步', next: '下一步', line: line => `第 ${line} 行`, returnLine: line => `从第 ${line} 行返回`,
+      activeLine: '当前轨迹代码行', values: '记录的变量', noValues: '此事件未捕获到变量。',
+      empty: '未捕获到执行过的源代码行。函数定义中的代码需要调用该函数才会执行。',
+      failed: '未捕获到执行过的源代码行。请查看下方的运行状态和输出。',
+      mappingUnavailable: '无法将记录的代码与此源代码匹配，因此不突出显示代码行。',
+      truncated: '轨迹已达到记录上限，仅可查看已记录的步骤。',
+      partial: '运行提前结束，这些步骤是在停止前记录的。',
+    },
   },
 };
 
@@ -195,6 +225,7 @@ function RunnableExample({ example, language, onLanguageChange, onLanguageMenuAn
   const preferences = example.preferences;
   preferences.drafts ||= Object.create(null);
   preferences.runs ||= Object.create(null);
+  preferences.traces ||= Object.create(null);
   const [drafts, setDrafts] = useState(preferences.drafts);
   const source = drafts[language] ?? variant.source;
   const [editing, setEditing] = useState(false);
@@ -203,6 +234,9 @@ function RunnableExample({ example, language, onLanguageChange, onLanguageMenuAn
   const [foldedByLanguage, setFoldedByLanguage] = useState(preferences.folded);
   const folded = foldedByLanguage[language] || [];
   const [runs, setRuns] = useState(preferences.runs);
+  const [traces, setTraces] = useState(preferences.traces);
+  const trace = currentTrace(traces[language], language, source);
+  const traceFrame = trace?.status !== 'running' ? trace?.frames[traceStep(trace.step, trace.frames.length)] : undefined;
   const result = runs[language];
   const busy = result?.status === 'running';
   const [status, setStatus] = useState('');
@@ -221,19 +255,34 @@ function RunnableExample({ example, language, onLanguageChange, onLanguageMenuAn
   useLayoutEffect(() => {
     setStatus('');
     setRuns(preferences.runs);
+    setTraces(preferences.traces);
     setEditorFolded(false);
     return () => {
       taskRef.current?.stop();
       taskRef.current = null;
       const previous = preferences.runs[language];
-      if (previous?.status === 'running') preferences.runs = { ...preferences.runs, [language]: { ...previous, status: 'stopped', error: 'Stopped.' } };
+      if (previous?.status === 'running') preferences.runs = { ...preferences.runs, [language]: { ...previous, status: 'stopped', error: text.stopped } };
+      const previousTrace = preferences.traces[language];
+      if (previousTrace?.status === 'running') preferences.traces = { ...preferences.traces, [language]: { ...previousTrace, status: 'stopped' } };
     };
   }, [language]);
   function updateRun(value) {
     preferences.runs = { ...preferences.runs, [language]: value };
     setRuns(preferences.runs);
   }
+  function updateTrace(value) {
+    preferences.traces = { ...preferences.traces, [language]: value };
+    setTraces(preferences.traces);
+  }
   function updateSource(value) {
+    if (value === source) return;
+    const task = taskRef.current;
+    taskRef.current = null;
+    task?.stop();
+    if (preferences.runs[language]?.status === 'running') {
+      updateRun({ ...preferences.runs[language], status: 'stopped', error: text.stopped });
+    }
+    updateTrace(undefined);
     const next = { ...preferences.drafts, [language]: value };
     preferences.drafts = next;
     setDrafts(next);
@@ -249,12 +298,14 @@ function RunnableExample({ example, language, onLanguageChange, onLanguageMenuAn
   function rememberOpeningAnchor() {
     openingAnchor.current = readLanguageAnchor(languageTrigger.current);
   }
-  function run() {
+  function run(recordTrace = false) {
     if (busy) { taskRef.current?.stop(); return; }
     if (!supported || !executable.runnable) return;
-    const snapshot = { source, status: 'running', output: '', message: '', error: '' };
+    if (recordTrace) setEditing(false);
+    updateTrace(recordTrace ? { language, source, status: 'running', frames: [], step: 0, truncated: false } : undefined);
+    const snapshot = { source, status: 'running', output: '', message: '', error: '', traced: recordTrace };
     updateRun(snapshot);
-    const task = runCode({ language, source: executable.source,
+    const task = runCode({ language, source: executable.source, trace: recordTrace,
       onOutput: output => { if (taskRef.current === task) updateRun({ ...preferences.runs[language], output }); },
       onStatus: message => { if (taskRef.current === task) updateRun({ ...preferences.runs[language], message }); },
     });
@@ -262,7 +313,13 @@ function RunnableExample({ example, language, onLanguageChange, onLanguageMenuAn
     task.promise.then(value => {
       if (taskRef.current !== task) return;
       taskRef.current = null;
-      updateRun({ source, ...value });
+      updateRun({ source, ...value, traced: recordTrace });
+      if (recordTrace) {
+        const replay = mapTraceFrames(value.traceFrames, source, executable.source);
+        updateTrace({ language, source, status: value.status, frames: replay.frames, step: 0,
+          truncated: Boolean(value.traceTruncated || replay.truncated), mappingUnavailable: !replay.mapped,
+          warnings: value.traceWarnings || [] });
+      }
     });
   }
   function reset() {
@@ -271,11 +328,12 @@ function RunnableExample({ example, language, onLanguageChange, onLanguageMenuAn
     updateSource(variant.source);
     updateFolded([]);
     updateRun(undefined);
+    updateTrace(undefined);
     setEditorFolded(false);
   }
   return <>
     <p className="reui-example__help sr-only" id={helpId}>{text.help}</p>
-    <CodeBlock className="reui-example__code dark" code={source} language={language}
+    <CodeBlock className="reui-example__code code-trace-source dark" code={source} language={language}
       variant={example.element.closest('.comparison') ? 'ghost' : 'default'}
       lines={source === variant.source ? variant.lines : undefined}
       highlight={!editing && source !== variant.source && new TextEncoder().encode(source).length <= 65536}
@@ -311,10 +369,13 @@ function RunnableExample({ example, language, onLanguageChange, onLanguageMenuAn
             </SelectContent>
           </Select>}
         <div className="reui-example__actions" role="group" aria-label={text.controls}>
-          {supported && <Button type="button" variant="ghost" size="sm" className="reui-example__run" onClick={run}
+          {supported && <Button type="button" variant="ghost" size="sm" className="reui-example__run" onClick={() => run()}
             disabled={!busy && !executable.runnable} aria-label={busy ? text.stop : text.run} aria-describedby={noteId}>
             {busy ? <Square size={12} aria-hidden="true" /> : <Play size={12} aria-hidden="true" />}<span>{busy ? text.stop : text.run}</span>
           </Button>}
+          {supported && <ControlHint label={executable.runnable ? text.trace.action : text.trace.unavailable} slot="button"><Button type="button" variant="ghost" size="sm"
+            className="code-trace-action" disabled={busy || !executable.runnable} aria-label={text.trace.action} aria-describedby={noteId}
+            onClick={() => run(true)}><Workflow size={14} aria-hidden="true" /></Button></ControlHint>}
           {supported && <ControlHint label={editing ? text.done : text.edit} slot="button"><Button type="button" variant="ghost" size="sm"
             aria-label={editing ? text.done : text.edit} aria-pressed={editing} onClick={() => setEditing(value => !value)}>
             {editing ? <Check size={14} aria-hidden="true" /> : <Pencil size={14} aria-hidden="true" />}
@@ -325,6 +386,10 @@ function RunnableExample({ example, language, onLanguageChange, onLanguageMenuAn
         </div>
       </CodeBlockHeader>
       <div hidden={editing}><CodeBlockContent /></div>
+      <TraceLineFocus line={traceFrame?.line} editing={editing} onReveal={starts => {
+        const revealed = new Set(starts);
+        updateFolded(folded.filter(start => !revealed.has(start)));
+      }} />
       {editing && <Suspense fallback={<p className="reui-example__loading">{text.loading}</p>}>
         <EditableCode key={language} ref={editor} source={source} language={language} wrap={wrap}
           onChange={updateSource} onFoldChange={setEditorFolded} ariaLabel={text.example(languageLabel)} />
@@ -332,8 +397,10 @@ function RunnableExample({ example, language, onLanguageChange, onLanguageMenuAn
       {supported && <p id={noteId} className={`reui-example__runner-note${info.remote ? ' reui-example__runner-note--remote' : !editing && !result && !executable.note ? ' sr-only' : ''}`}>
         {executable.note && <span>{executable.note} </span>}{(editing || result || info.remote) && info.note}
       </p>}
+      {trace && <CodeTrace trace={trace} source={source} text={text.trace}
+        onStep={step => updateTrace({ ...trace, step: traceStep(step, trace.frames.length) })} />}
       {result && <div className="reui-example__output" data-run-status={result.status}>
-        <div className="reui-example__output-heading"><span>{text.output}</span><span role="status">{busy ? result.message || 'Starting…' : text.state[result.status]}</span></div>
+        <div className="reui-example__output-heading"><span>{result.traced ? text.completeOutput : text.output}</span><span role="status">{busy ? result.message || text.starting : text.state[result.status]}</span></div>
         {result.source !== source && <p className="reui-example__previous">{text.previous}</p>}
         <pre tabIndex={0} aria-label={text.output}>{result.output || (!busy && !result.error ? text.noOutput : '')}{result.error ? `${result.output ? '\n' : ''}${result.error}` : ''}</pre>
       </div>}

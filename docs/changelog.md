@@ -2,6 +2,9 @@
 
 ## 19 October 2026
 
+- Added eight interactive visual walkthroughs: vector projection, normalization, matrix area, trigonometry, Bayes, gradient descent, neural weighted sums and softmax.
+- Added execution trace replay for editable JavaScript, Python, C and Rust examples, with highlighted source lines and bounded runtime snapshots.
+- Moved explanatory prose beside the notation and gave practice labs a distinct warm background.
 - Expanded the Pele concept maps into worked visual explanations across the math guide and every ML lesson, with small numerical examples and plain-language takeaways.
 - Kept diagrams in the continuous lesson flow before practice, with narrow-screen layouts and complete text alternatives.
 - Added 10 math topics: powers and logarithms, trigonometry, modular arithmetic, combinations, probability, expectation, variance, Bayes, correlation and entropy.

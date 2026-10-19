@@ -14,7 +14,7 @@ export async function buildRunnerAssets(outputDirectory) {
   const output = join(outputDirectory, 'assets', 'runners');
   await mkdir(output, { recursive: true });
   const lock = JSON.parse(await readFile(join(root, 'site/runners/runtime-lock.json'), 'utf8'));
-  const manifest = { version: 1, languages: { javascript: [], python: [], c: [] } };
+  const manifest = { version: 1, languages: { javascript: [], python: [], c: [], rust: [] } };
   async function asset(language, name, bytes, gzip = true) {
     const buffer = gzip ? gzipSync(bytes, { level: 9 }) : Buffer.from(bytes);
     if (buffer.length > 25 * 1024 * 1024) throw new Error(`Static runtime asset exceeds the 25 MiB host limit: ${name}`);
@@ -35,6 +35,13 @@ export async function buildRunnerAssets(outputDirectory) {
     write: false, minify: true, format: 'iife', globalName: 'MACModules', platform: 'browser', target: 'es2020', legalComments: 'eof' });
   await asset('javascript', 'guest-modules.js', modules.outputFiles[0].contents);
   await asset('python', 'notation.py', await readFile(join(root, 'examples/notation.py')));
+  // Syntax parsers support bounded source instrumentation for compiled traces.
+  // They are local static inputs; Rust execution still uses the existing service.
+  const parser = await readFile(join(root, 'node_modules/web-tree-sitter/web-tree-sitter.wasm'));
+  await asset('c', 'trace-parser.wasm', parser);
+  await asset('c', 'trace-c.wasm', await readFile(join(root, 'node_modules/tree-sitter-c/tree-sitter-c.wasm')));
+  await asset('rust', 'trace-parser.wasm', parser);
+  await asset('rust', 'trace-rust.wasm', await readFile(join(root, 'node_modules/tree-sitter-rust/tree-sitter-rust.wasm')));
   const worker = await build({ entryPoints: [join(root, 'site/runners/worker.mjs')], write: false,
     bundle: true, minify: true, format: 'iife', platform: 'browser', target: 'es2022', legalComments: 'eof',
     // QuickJS's Emscripten wrapper calculates a directory before using the supplied
@@ -49,6 +56,9 @@ export async function buildRunnerAssets(outputDirectory) {
   await cp(join(root, 'site/runners/sandbox.html'), join(output, 'sandbox.html'));
   await cp(join(root, 'site/runners/THIRD-PARTY.md'), join(output, 'THIRD-PARTY.md'));
   await cp(join(root, 'site/runners/LICENSES'), join(output, 'LICENSES'), { recursive: true });
+  for (const [name, version] of [['acorn', '8.18.0'], ['web-tree-sitter', '0.27.1'], ['tree-sitter-c', '0.24.1'], ['tree-sitter-rust', '0.24.0']]) {
+    await cp(join(root, 'node_modules', name, 'LICENSE'), join(output, 'LICENSES', `${name}-${version}-LICENSE`));
+  }
   for (const [language, files] of Object.entries(manifest.languages)) {
     if (files.reduce((bytes, file) => bytes + file.bytes, 0) > 32 * 1024 * 1024) throw new Error(`${language} runtime downloads exceed the 32 MiB limit.`);
   }

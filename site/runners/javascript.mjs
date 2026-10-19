@@ -1,8 +1,14 @@
 import RELEASE_SYNC from '@jitl/quickjs-wasmfile-release-sync';
 import { newVariant, newQuickJSWASMModuleFromVariant } from 'quickjs-emscripten-core';
 import { RUN_LIMITS } from './limits.mjs';
+import { instrumentJavaScript, javascriptTraceBootstrap } from './trace-javascript.mjs';
+import { createTraceCollector } from './trace-runtime.mjs';
 
-export async function executeJavaScript(source, assets, emit, started = () => {}) {
+export async function executeJavaScript(source, assets, emit, started = () => {}, options = {}) {
+  const trace = createTraceCollector(options);
+  let instrumented;
+  try { instrumented = options.trace ? instrumentJavaScript(source) : null; }
+  catch (error) { Object.assign(error, trace.status); throw error; }
   const variant = newVariant(RELEASE_SYNC, { wasmBinary: assets['quickjs.wasm'] });
   const engine = await newQuickJSWASMModuleFromVariant(variant);
   const runtime = engine.newRuntime();
@@ -39,9 +45,20 @@ export async function executeJavaScript(source, assets, emit, started = () => {}
       context.unwrapResult(context.evalCode(new TextDecoder().decode(assets['guest-modules.js']), 'included-modules.js')).dispose();
       context.unwrapResult(context.evalCode('globalThis.require = MACModules.require;')).dispose();
     }
+    if (instrumented) {
+      const nativeName = `${instrumented.helper}Send`;
+      const send = context.newFunction(nativeName, value => {
+        const text = context.getString(value);
+        if (text.length <= 32768) trace.receive(JSON.parse(text));
+        return context.undefined;
+      });
+      context.setProp(context.global, nativeName, send);
+      send.dispose();
+      context.unwrapResult(context.evalCode(javascriptTraceBootstrap(instrumented.helper, nativeName), 'trace-bootstrap.js')).dispose();
+    }
     deadline = Date.now() + RUN_LIMITS.executionMs;
     started();
-    const result = context.evalCode(source, 'example.js');
+    const result = context.evalCode(instrumented?.source ?? source, 'example.js');
     if (result.error) {
       const error = context.dump(result.error);
       result.error.dispose();
@@ -60,6 +77,10 @@ export async function executeJavaScript(source, assets, emit, started = () => {}
         throw new Error(error?.message || String(error));
       }
     }
+    return trace.status;
+  } catch (error) {
+    Object.assign(error, trace.status);
+    throw error;
   } finally {
     context.dispose();
     runtime.dispose();

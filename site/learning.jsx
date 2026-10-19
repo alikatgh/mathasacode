@@ -1,5 +1,6 @@
 import React, { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
+import { FlaskConical } from 'lucide-react';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import { NativeSelect, NativeSelectOption } from './components/ui/native-select';
@@ -199,8 +200,9 @@ function Practice({ entry, model, completed }) {
   const text = learningText[model.language];
   return <Card className="learn-panel-card">
     <CardHeader className="learn-panel__header">
+      <Badge variant="outline" className="learn-panel__marker"><FlaskConical aria-hidden="true" />{model.language === 'zh' ? '动手练习' : 'Practice lab'}</Badge>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <CardTitle id={`${panel.id}-title`} className="learn-panel__title">{text.practice(localizeLearning(activity.title, model.language))}</CardTitle>
+        <CardTitle id={`${panel.id}-title`} className="learn-panel__title" role="heading" aria-level={Math.min(6, Number(heading.tagName.slice(1)) + 1)}>{text.practice(localizeLearning(activity.title, model.language))}</CardTitle>
         {completed && <Badge variant="outline" className="learn-panel__status">{text.complete}</Badge>}
       </div>
       <CardDescription className="learn-panel__description">{localizeLearning(activity.description, model.language)}</CardDescription>

@@ -1,4 +1,7 @@
 @import "./styles/reui.css";
+@import "./experiments/experiments.css";
+@import "./lesson-sections.css";
+@import "./code-trace.css";
 
 :root {
   color-scheme: light;

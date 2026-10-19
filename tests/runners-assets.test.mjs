@@ -7,7 +7,7 @@ const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 
 test('deployed manifest pins every runtime and worker to content-hashed bytes', async () => {
   const manifest = JSON.parse(await readFile(new URL('../dist/assets/runners/manifest.json', import.meta.url), 'utf8'));
-  assert.deepEqual(Object.keys(manifest.languages).sort(), ['c', 'javascript', 'python']);
+  assert.deepEqual(Object.keys(manifest.languages).sort(), ['c', 'javascript', 'python', 'rust']);
   assert.match(manifest.worker.path, /\/worker\.[0-9a-f]{16}\.js$/);
   const files = [manifest.worker, ...Object.values(manifest.languages).flat()];
   for (const file of files) {
@@ -17,6 +17,7 @@ test('deployed manifest pins every runtime and worker to content-hashed bytes', 
     assert.equal(hash(bytes), file.sha256);
   }
   assert.equal(manifest.languages.python.some(file => /pyodide/.test(file.name)), false);
+  assert.deepEqual(manifest.languages.rust.map(file => file.name).sort(), ['trace-parser.wasm', 'trace-rust.wasm']);
 });
 
 test('a mismatched worker fails integrity before edited source is sent to a worker', async () => {

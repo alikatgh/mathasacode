@@ -1,5 +1,14 @@
 # Browser runtimes
 
+Execution trace replay records a bounded run, then lets the reader inspect the
+recorded source locations and local values without rerunning each step. It uses
+Acorn 8.18.0 (MIT) for JavaScript syntax and web-tree-sitter 0.27.1 with the
+official tree-sitter-c 0.24.1 and tree-sitter-rust 0.24.0 grammars (MIT) for
+compiled-source instrumentation. Python uses CPython's native `sys.settrace`.
+Complete parser license texts are included in `LICENSES/`. The trace is limited
+to 500 events and 32 KiB of snapshots; it is not a live paused process. Normal
+Run preserves the original source, runtime limits and isolation.
+
 JavaScript uses QuickJS through quickjs-emscripten 0.31.0 (MIT), with its included
 QuickJS interpreter (MIT), inside a Web Worker. The guest has console output and
 the explicitly included modules only; no browser APIs are exposed. QuickJS heap
@@ -73,7 +82,7 @@ retained in [LICENSES/](LICENSES/README.md). Python receives the project's
 examples/notation.py.
 
 Rust is compiled/executed by the existing public Rust Playground service:
-https://play.rust-lang.org . A manual Run sends the editor's current source
+https://play.rust-lang.org . A manual Run or Trace sends the editor's current source
 there with credentials omitted, no automatic retry, a 10 second request cooldown,
 a 20 second client timeout, and bounded responses. Source must not include private
 data. Stop cancels the browser's request and waiting; it cannot guarantee server

@@ -1,0 +1,51 @@
+.experiment-frame {
+  --card-spacing: 18px;
+  --scene-a: #356b8c;
+  --scene-b: #9460a2;
+  --scene-c: #b46d24;
+  --scene-grid: color-mix(in srgb, var(--foreground) 13%, transparent);
+  gap: 16px;
+  min-width: 0;
+  background: var(--card);
+}
+.dark .experiment-frame { --scene-a: #80c2e5; --scene-b: #c7a0dc; --scene-c: #e6b36d; }
+.experiment__heading { gap: 5px; }
+.experiment__eyebrow { color: var(--primary); font: 10px/1.5 var(--font-mono); text-transform: uppercase; letter-spacing: .07em; }
+.experiment__title { font-size: 17px; font-weight: 550; line-height: 1.4; }
+.experiment__description, .experiment__caption { max-width: 76ch; margin: 0; color: var(--muted-foreground); font-size: 13px; line-height: 1.65; }
+.experiment__body { min-width: 0; }
+.experiment__workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(210px, .65fr); gap: 24px; align-items: center; }
+.experiment__plot { display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; border-radius: 5px; background: color-mix(in srgb, var(--muted) 32%, transparent); }
+.experiment__plot > svg { display: block; width: 100%; height: auto; max-width: 520px; overflow: visible; }
+.experiment__plot svg text { font-family: var(--font-sans); }
+.experiment__details { min-width: 0; }
+.experiment__controls { display: grid; gap: 16px; }
+.experiment-range { min-width: 0; }
+.experiment-range__label { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; line-height: 1.6; }
+.experiment-range__label output { color: var(--primary); font-family: var(--font-mono); white-space: nowrap; }
+.experiment-range input { display: block; width: 100%; margin: 7px 0 0; min-height: 24px; accent-color: var(--scene-a); cursor: pointer; }
+.experiment-range input:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-radius: 3px; }
+.experiment-presets { display: flex; gap: 5px; flex-wrap: wrap; }
+.experiment-presets > button { height: auto; min-height: 29px; padding: 5px 8px; font-size: 11px; }
+.experiment__readout { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.experiment-metrics { display: grid; gap: 7px; }
+.scene-metrics { display: grid; gap: 7px; }
+.scene-equation { margin: 10px 0 0; font: 12px/1.65 var(--font-mono); overflow-wrap: anywhere; }
+.scene-note { margin: 10px 0 0; color: var(--muted-foreground); font-size: 12px; line-height: 1.6; }
+.scene-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.scene-actions button { font-size: 12px; }
+.experiment-metric { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 12px; }
+.experiment-metric > span { color: var(--muted-foreground); }
+.experiment-metric > strong { text-align: right; font: 12px/1.5 var(--font-mono); color: var(--foreground); }
+.experiment__walkthrough { display: flex; align-items: center; justify-content: space-between; gap: 20px; border-top: 1px solid var(--border); padding-top: 14px; margin-top: 18px; }
+.experiment__step-copy { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+.experiment__counter { flex-shrink: 0; color: var(--primary); font: 11px/1.6 var(--font-mono); }
+.experiment__step-copy p { margin: 0; font-size: 13px; line-height: 1.6; }
+.experiment__step-controls { display: flex; flex-shrink: 0; gap: 6px; }
+.experiment__step-controls button { font-size: 12px; }
+.experiment__caption { margin-top: 12px; font-size: 12px; }
+@media (max-width: 700px) {
+  .experiment__workspace { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .experiment__walkthrough { align-items: stretch; flex-direction: column; gap: 12px; }
+  .experiment__step-controls { justify-content: space-between; }
+}

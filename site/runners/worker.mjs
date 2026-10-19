@@ -1,6 +1,9 @@
 import { executeJavaScript } from './javascript.mjs';
 import { executePython } from './python.mjs';
 import { RUN_LIMITS, boundWasmMemory } from './limits.mjs';
+import { createTraceCollector } from './trace-runtime.mjs';
+import { traceOutputFilter } from './trace-wire.mjs';
+import { instrumentCompiledTrace } from './trace-compiled.mjs';
 
 const send = self.postMessage.bind(self);
 let outputLength = 0;
@@ -17,14 +20,14 @@ function loadClassic(bytes) {
   try { importScripts(url); } finally { URL.revokeObjectURL(url); }
 }
 
-async function executeC(source, assets) {
+async function executeC(source, assets, write = emit) {
   send({ type: 'status', text: 'Preparing C filesystem…' });
   // Upstream's real Clang/LLD WASI implementation; only in-memory files and stdout.
   loadClassic(assets['shared.js']);
   const api = new self.MACClangAPI({
     readBuffer: async name => assets[name],
     compileStreaming: async name => WebAssembly.compile(boundWasmMemory(assets[name], RUN_LIMITS.compilerMemoryBytes)),
-    hostWrite: text => { if (!api.quiet) emit(text.replace(/\u001b\[[0-9;]*m/g, '')); },
+    hostWrite: text => { if (!api.quiet) write(text.replace(/\u001b\[[0-9;]*m/g, '')); },
   });
   api.quiet = true;
   api.hostLog = () => {};
@@ -51,15 +54,28 @@ async function executeC(source, assets) {
 
 self.onmessage = async event => {
   self.onmessage = null;
-  const { language, source, assets } = event.data;
+  const { language, source, assets, trace = false } = event.data;
+  const collector = createTraceCollector(frame => send({ type: 'trace', frame }));
+  let metadata;
+  let traceWarnings = [];
   try {
-    if (language === 'javascript') await executeJavaScript(source, assets, emit, started);
-    else if (language === 'python') await executePython(source, assets, emit, started);
-    else if (language === 'c') await executeC(source, assets);
+    const options = { trace, onTrace: frame => collector.push(frame) };
+    if (language === 'javascript') metadata = await executeJavaScript(source, assets, emit, started, options);
+    else if (language === 'python') metadata = await executePython(source, assets, emit, started, options);
+    else if (language === 'c') {
+      if (trace) {
+        send({ type: 'status', text: 'Preparing C execution trace…' });
+        const prepared = await instrumentCompiledTrace(language, source, assets);
+        traceWarnings = prepared.warnings || [];
+        const filter = traceOutputFilter({ prefix: prepared.markerPrefix, onFrame: frame => collector.push(frame), onOutput: emit });
+        await executeC(prepared.source, assets, text => filter.write(text));
+        filter.flush();
+      } else await executeC(source, assets);
+    }
     else throw new Error('Unknown browser runtime.');
-    send({ type: 'done' });
+    send({ type: 'done', traceTruncated: collector.truncated || metadata?.traceTruncated === true, traceWarnings });
   } catch (error) {
     const message = String(error?.message || error).slice(0, RUN_LIMITS.outputChars);
-    send({ type: /interrupted/.test(message) ? 'timeout' : 'error', error: message });
+    send({ type: /interrupted/.test(message) ? 'timeout' : 'error', error: message, traceTruncated: collector.truncated || error?.traceTruncated === true, traceWarnings });
   }
 };
