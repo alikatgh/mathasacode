@@ -6,26 +6,67 @@ import { tmpdir } from 'node:os';
 import { assetLimits, inspectAssets, siteOrigin, validateStaticConfig, verifyRelease } from '../scripts/verify-release.mjs';
 
 const config = JSON.parse(await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8'));
+const staticConfig = {
+  name: 'math-as-code',
+  account_id: '4c1e57b6972105286a7aeb46b2b89c78',
+  compatibility_date: '2026-10-19',
+  workers_dev: false,
+  preview_urls: false,
+  assets: { directory: './dist', html_handling: 'auto-trailing-slash', not_found_handling: '404-page' },
+  routes: [{ pattern: new URL(siteOrigin).hostname, custom_domain: true }],
+};
 
-test('Pages release configuration allows only its pinned static target', () => {
+test('Workers release configuration allows only its pinned static target', () => {
+  assert.deepEqual(config, staticConfig);
   assert.doesNotThrow(() => validateStaticConfig(config));
   for (const extra of [
     { main: 'server.js' }, { kv_namespaces: [] }, { triggers: { crons: ['* * * * *'] } },
-    { observability: { enabled: true } }, { assets: { directory: './dist' } },
-    { routes: [{ pattern: new URL(siteOrigin).hostname, custom_domain: true }] },
-    { workers_dev: false }, { env: { production: { vars: {} } } }, { unknown_option: true },
+    { observability: { enabled: true } }, { pages_build_output_dir: './dist' },
+    { env: { production: { vars: {} } } }, { unknown_option: true },
   ]) {
     assert.throws(() => validateStaticConfig({ ...config, ...extra }), /Static release cannot contain/);
   }
-  assert.throws(() => validateStaticConfig({ ...config, name: 'another-project' }), /Unexpected Pages project/);
+  assert.throws(() => validateStaticConfig({ ...config, name: 'another-project' }), /Unexpected Worker project/);
   assert.throws(() => validateStaticConfig({ ...config, account_id: '0'.repeat(32) }), /Unexpected Cloudflare account/);
-  assert.throws(() => validateStaticConfig({ ...config, pages_build_output_dir: './' }), /Serve only/);
-  const { pages_build_output_dir, ...missingOutput } = config;
-  assert.throws(() => validateStaticConfig(missingOutput), /Serve only/);
-  for (const compatibility_date of ['latest', '2026-02-30', '2026-99-01']) {
+  for (const compatibility_date of ['latest', '2026-02-30', '2026-99-01', '2026-10-20']) {
     assert.throws(() => validateStaticConfig({ ...config, compatibility_date }), /pinned compatibility date/);
   }
+  for (const key of Object.keys(staticConfig)) {
+    const missing = { ...config };
+    delete missing[key];
+    assert.throws(() => validateStaticConfig(missing));
+  }
   assert.deepEqual(assetLimits, { files: 1000, bytesPerFile: 25 * 1024 * 1024 });
+});
+
+test('Workers release disables secondary hosts and rejects asset execution options', () => {
+  for (const key of ['workers_dev', 'preview_urls']) {
+    for (const value of [true, 'false', null]) {
+      assert.throws(() => validateStaticConfig({ ...config, [key]: value }), /must be disabled/);
+    }
+  }
+  for (const assets of [
+    null, [], {}, { ...staticConfig.assets, directory: './' },
+    { ...staticConfig.assets, html_handling: 'none' },
+    { ...staticConfig.assets, not_found_handling: 'single-page-application' },
+    { ...staticConfig.assets, run_worker_first: false },
+    { ...staticConfig.assets, run_worker_first: true },
+    { ...staticConfig.assets, binding: 'ASSETS' },
+  ]) {
+    assert.throws(() => validateStaticConfig({ ...config, assets }), /Serve only/);
+  }
+});
+
+test('Workers release pins one custom domain without route overrides', () => {
+  for (const routes of [
+    null, [], [{ pattern: 'other.aulenor.com', custom_domain: true }],
+    [{ pattern: `${new URL(siteOrigin).hostname}/*`, custom_domain: true }],
+    [{ pattern: new URL(siteOrigin).hostname, custom_domain: false }],
+    [{ ...staticConfig.routes[0], zone_name: 'aulenor.com' }],
+    [...staticConfig.routes, { pattern: 'other.aulenor.com', custom_domain: true }],
+  ]) {
+    assert.throws(() => validateStaticConfig({ ...config, routes }), /production custom domain/);
+  }
 });
 
 test('artifact inspection rejects Pages execution paths at any depth', async t => {

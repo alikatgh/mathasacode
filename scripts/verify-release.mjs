@@ -6,8 +6,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const siteOrigin = 'https://mathasacode.aulenor.com';
-// Pages dashboard Direct Upload limits, checked against Cloudflare's official docs 2026-10-19.
-// Keep the artifact compatible with both dashboard ZIP uploads and Wrangler.
+// Keep the project's existing 1,000-file bound, below the Workers static asset limit.
+// Changing hosting does not require increasing the permitted artifact size.
 export const assetLimits = { files: 1_000, bytesPerFile: 25 * 1024 * 1024 };
 const sourceFiles = ['_headers', 'robots.txt', 'sitemap.xml', '404.html'];
 const executionNames = new Set(['_worker.js', 'functions']);
@@ -22,15 +22,20 @@ const secretPatterns = [
 ];
 
 export function validateStaticConfig(config) {
-  const allowed = ['name', 'account_id', 'compatibility_date', 'pages_build_output_dir'];
+  const allowed = ['name', 'account_id', 'compatibility_date', 'workers_dev', 'preview_urls', 'assets', 'routes'];
   assert.ok(config && typeof config === 'object' && !Array.isArray(config), 'Expected a static deployment configuration');
   assert.deepEqual(Object.keys(config).filter(key => !allowed.includes(key)), [], 'Static release cannot contain Worker code, bindings, schedules or additional services');
-  assert.equal(config.name, 'math-as-code', 'Unexpected Pages project');
+  assert.equal(config.name, 'math-as-code', 'Unexpected Worker project');
   assert.equal(config.account_id, '4c1e57b6972105286a7aeb46b2b89c78', 'Unexpected Cloudflare account');
-  assert.match(config.compatibility_date, /^\d{4}-\d{2}-\d{2}$/, 'Set a pinned compatibility date');
-  const compatibilityTime = Date.parse(`${config.compatibility_date}T00:00:00Z`);
-  assert.ok(Number.isFinite(compatibilityTime) && new Date(compatibilityTime).toISOString().slice(0, 10) === config.compatibility_date, 'Set a valid pinned compatibility date');
-  assert.equal(config.pages_build_output_dir, './dist', 'Serve only the built static asset directory');
+  assert.equal(config.compatibility_date, '2026-10-19', 'Set the pinned compatibility date');
+  assert.equal(config.workers_dev, false, 'Workers development host must be disabled');
+  assert.equal(config.preview_urls, false, 'Workers preview URLs must be disabled');
+  assert.deepEqual(config.assets, {
+    directory: './dist',
+    html_handling: 'auto-trailing-slash',
+    not_found_handling: '404-page',
+  }, 'Serve only the built static asset directory with its pinned HTML and 404 policies');
+  assert.deepEqual(config.routes, [{ pattern: new URL(siteOrigin).hostname, custom_domain: true }], 'Serve only the production custom domain');
 }
 
 export async function inspectAssets(directory, { limits = assetLimits } = {}) {
@@ -51,8 +56,8 @@ export async function inspectAssets(directory, { limits = assetLimits } = {}) {
       } else {
         assert.ok(info.isFile(), `Unsupported asset type: ${name}`);
         assert.ok(!name.endsWith('.html') || !name.includes('/') || name === 'assets/runners/sandbox.html', `Nested HTML needs an explicit document security policy: ${name}`);
-        assert.ok(info.size <= limits.bytesPerFile, `Asset exceeds the Pages Direct Upload per-file limit: ${name}`);
-        assert.ok(files.length < limits.files, 'Artifact exceeds the Pages dashboard Direct Upload file-count limit');
+        assert.ok(info.size <= limits.bytesPerFile, `Asset exceeds the Workers static asset per-file limit: ${name}`);
+        assert.ok(files.length < limits.files, 'Artifact exceeds the project static asset file-count limit');
         const bytes = await readFile(path);
         if (textExtensions.has(extname(name).toLowerCase()) || entry.name === '_headers') {
           const content = bytes.toString('utf8');
@@ -69,15 +74,14 @@ export async function inspectAssets(directory, { limits = assetLimits } = {}) {
 export async function verifyRelease(root = projectRoot, { artifactDirectory } = {}) {
   const config = JSON.parse(await readFile(join(root, 'wrangler.jsonc'), 'utf8'));
   validateStaticConfig(config);
-  // Wrangler also discovers a functions directory in its working directory,
-  // independently of pages_build_output_dir. Reject it even when dist is clean.
+  // Reject leftover server entry points even when the static asset directory is clean.
   for (const entry of await readdir(root)) {
     assert.ok(!executionNames.has(entry.toLowerCase()), `Static release cannot contain project-root Pages server execution paths: ${entry}`);
   }
-  const directory = artifactDirectory ? resolve(artifactDirectory) : join(root, config.pages_build_output_dir);
+  const directory = artifactDirectory ? resolve(artifactDirectory) : join(root, config.assets.directory);
   const files = await inspectAssets(directory);
   const publicFiles = new Set(files.map(file => file.path));
-  assert.ok(publicFiles.has('404.html'), 'A top-level 404.html is required to prevent Pages single-page application fallback');
+  assert.ok(publicFiles.has('404.html'), 'A top-level 404.html is required for the static not-found policy');
   for (const name of sourceFiles) {
     assert.equal(await readFile(join(directory, name), 'utf8'), await readFile(join(root, 'site', name), 'utf8'), `Built ${name} is absent or stale`);
   }
