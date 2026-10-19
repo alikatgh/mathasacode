@@ -9,7 +9,7 @@ import { readLanguage, saveLanguage, preferenceKey } from '../site/code-tabs.mjs
 import { advanced, chineseOverrides } from '../site/snippets/advanced.mjs';
 
 test('every guide code example has four real variants and preserves its authored language', async () => {
-  for (const document of documents.slice(0, 3)) {
+  for (const document of documents.filter(document => document.guide)) {
     const source = await readFile(new URL(`../${document.source}`, import.meta.url), 'utf8');
     const codes = new Marked().lexer(source).filter(token => token.type === 'code');
     for (const [index, token] of codes.entries()) {

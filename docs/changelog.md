@@ -2,6 +2,9 @@
 
 ## 19 October 2026
 
+- Added 10 math topics: powers and logarithms, trigonometry, modular arithmetic, combinations, probability, expectation, variance, Bayes, correlation and entropy.
+- Added a separate ML and deep learning path that unpacks a neural network training objective, then trains a tiny network with real backpropagation.
+- Added four-language runnable examples and 14 new interactive practices while preserving existing progress.
 - Added this local edition's blog and changelog.
 - Added a simple sage logo generated in the project's ChatGPT art conversation.
 - Kept topics and lesson content as the main entry point to the guide.

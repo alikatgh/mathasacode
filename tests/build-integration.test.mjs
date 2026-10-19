@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { transform } from 'esbuild';
-import { documents, renderDocument } from '../scripts/build.mjs';
+import { documents, renderDocument, localHref } from '../scripts/build.mjs';
 
 test('every document has a page-specific canonical, description and local favicon', () => {
   for (const document of documents) {
@@ -27,6 +27,13 @@ test('blog and changelog render as reader resources', async () => {
   }
 });
 
+test('source-relative guide links work in both nested Markdown and built pages', () => {
+  assert.equal(localHref('../README.md', 'docs/ml-deep-learning.md'), '/index.html');
+  assert.equal(localHref('./ml-deep-learning.md#the-final-boss', 'docs/blog.md'), '/machine-learning.html#the-final-boss');
+  assert.equal(localHref('../examples/notation.py', 'docs/run-locally.md'), '/examples/notation.py');
+  assert.equal(localHref('https://example.com/README.md', 'docs/blog.md'), 'https://example.com/README.md');
+});
+
 test('read-only token metadata uses the same VS Code palettes as editable examples', () => {
   const source = 'const value = 42;';
   const { html } = renderDocument(`# Code\n\n\`\`\`js\n${source}\n\`\`\`\n`);
@@ -47,6 +54,7 @@ test('guide version selection accepts canonical and .html routes', async () => {
   for (const suffix of ['', '.html', '/', '.html/']) {
     assert.equal(guideVersionPath(`/PYTHON-README${suffix}`), '/PYTHON-README.html');
     assert.equal(guideVersionPath(`/README-zh${suffix}`), '/README-zh.html');
+    assert.equal(guideVersionPath(`/machine-learning${suffix}`), '/machine-learning.html');
   }
   for (const path of ['/', '/index.html', '/blog', '/changelog.html']) assert.equal(guideVersionPath(path), '/');
 });

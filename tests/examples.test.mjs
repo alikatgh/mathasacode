@@ -93,11 +93,16 @@ test('Lambertian example applies beam cosine once and is invariant to vector sca
   assert.throws(() => math.lambertianReflection(1, 1, [0, 0, 0], [0, 0, 1]));
 });
 
-test('new English and Chinese code examples execute, and copied integration is bounded', async () => {
+test('existing advanced examples execute together and copied integration remains bounded', async () => {
   for (const [filename, heading] of [['README.md', '## matrix multiplication'], ['README-zh.md', '## 矩阵乘法']]) {
     const source = await readFile(new URL(`../${filename}`, import.meta.url), 'utf8');
-    const added = source.slice(source.indexOf(heading));
+    const start = source.indexOf(heading);
+    const end = source.indexOf(filename === 'README-zh.md' ? '## 幂与对数' : '## powers and logarithms');
+    assert.ok(start >= 0 && end > start, 'keep the original advanced example group intact');
+    const added = source.slice(start, end);
     const context = vm.createContext({ require: path => { assert.equal(path, './examples/notation.cjs'); return math; }, console: { log() {} } });
+    // The original Chinese examples deliberately reuse their preceding helpers.
+    // The new standalone programs are checked independently by expanded-content.
     for (const match of added.matchAll(/```js\n([\s\S]*?)```/g)) vm.runInContext(match[1], context, { timeout: 1000 });
     if (filename === 'README-zh.md') {
       assert.throws(() => vm.runInContext('integrateTrapezoid(x => x, 0, 1, 1e20)', context, { timeout: 100 }), /1000000/);

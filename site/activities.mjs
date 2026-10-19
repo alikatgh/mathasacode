@@ -111,6 +111,39 @@ function sameLength (a, b) {
   if (a.length !== b.length) throw new Error('Both vectors must have the same length.')
 }
 
+function boundedVector (values, key, minLength = 1) {
+  const result = vector(values, key, 20, minLength)
+  if (result.some(value => Math.abs(value) > 1e12)) {
+    throw new Error(key + ': each value must be between −1000000000000 and 1000000000000.')
+  }
+  return result
+}
+
+function probabilities (values, key) {
+  const result = vector(values, key)
+  if (result.some(p => p < 0 || p > 1)) throw new Error(key + ': probabilities must be from 0 to 1.')
+  const total = result.reduce((sum, p) => sum + p, 0)
+  if (Math.abs(total - 1) > 1e-10) throw new Error(key + ': probabilities must sum to 1 (tolerance 1e-10); they are not automatically normalized.')
+  return result
+}
+
+function centered (values) {
+  const average = mean(values)
+  const deviations = values.map(value => value - average)
+  const scale = Math.max(...deviations.map(Math.abs))
+  return { scale, scaled: scale === 0 ? deviations : deviations.map(value => value / scale) }
+}
+
+function scores (values, count) {
+  const result = vector(values, 'scores', count || 8, count || 1)
+  if (result.some(value => Math.abs(value) > 1e6)) throw new Error('scores: each score must be between −1000000 and 1000000.')
+  return result
+}
+
+function logisticLoss (score, target) {
+  return (target === 1 ? Math.max(-score, 0) : Math.max(score, 0)) + Math.log1p(Math.exp(-Math.abs(score)))
+}
+
 function unit (v) {
   const scale = Math.max(...v.map(Math.abs))
   if (scale === 0) throw new Error('A zero vector has no unit direction.')
@@ -622,6 +655,265 @@ export const activities = [
       [['once', 'Lₒ = (R/π) E', 'Lₒ = (R/π) E'], ['twice', 'Multiply by the cosine again', '再乘一次余弦'], ['omitpi', 'Lₒ = R E', 'Lₒ = R E']],
       'once', 'The cosine was included in surface irradiance. Applying it again would count it twice.',
       '表面辐照度已经包含余弦因子，再乘一次会重复计入。')
+  ),
+  activity(
+    'powers-and-logarithms', ['powers-and-logarithms'], ['幂与对数'],
+    L('Reverse a power with a logarithm', '用对数逆转幂运算'),
+    L('Switch between bˣ and logᵦ(x). Use positive x and a positive base other than 1; unrepresentable powers are rejected.',
+      '切换 bˣ 与 logᵦ(x)。x 必须为正，底数必须为正且不等于 1；无法用有限数表示的幂会被拒绝。'),
+    [
+      select('operation', 'Operation', '运算', 'power', [['power', 'Power bˣ', '幂 bˣ'], ['log', 'Logarithm logᵦ(x)', '对数 logᵦ(x)']]),
+      number('base', 'Base b (positive, not 1)', '底数 b（正数，不等于 1）', 2, { min: 0.000001, max: 1000000 }),
+      number('x', 'Positive x', '正数 x', 3, { min: 0.000001, max: 100 })
+    ],
+    v => {
+      const operation = choice(v, 'operation', ['power', 'log'])
+      const base = numeric(v, 'base', 0.000001, 1000000); const x = numeric(v, 'x', 0.000001, 100)
+      if (base === 1) throw new Error('base: choose a positive base other than 1.')
+      const result = operation === 'power' ? Math.pow(base, x) : Math.log(x) / Math.log(base)
+      finite(result, 'result')
+      if (operation === 'power' && result === 0) throw new Error('The power is too small to represent; choose a smaller exponent or a larger base.')
+      return output(operation === 'power' ? fmt(base) + '^' + fmt(x) : 'log_' + fmt(base) + '(' + fmt(x) + ')', result)
+    },
+    quiz('If 2³ = 8, what is log₂(8)?', '已知 2³ = 8，那么 log₂(8) 是多少？',
+      [['exponent', '3', '3'], ['base', '2', '2'], ['product', '16', '16']],
+      'exponent', 'A logarithm asks for the exponent: 2 raised to 3 is 8.',
+      '对数求的是指数：2 的 3 次方等于 8。')
+  ),
+  activity(
+    'trigonometry', ['trigonometry'], ['三角函数'],
+    L('Turn degrees into a point on the circle', '把角度变成圆上的点'),
+    L('Convert degrees to radians before evaluating sin and cos. On the unit circle, the coordinates are (cos θ, sin θ).',
+      '先把角度转成弧度，再计算 sin 和 cos。在单位圆上，坐标为 (cos θ, sin θ)。'),
+    [number('degrees', 'Angle θ (degrees)', '角 θ（度）', 30, { min: -360000, max: 360000 })],
+    v => {
+      const degrees = numeric(v, 'degrees', -360000, 360000)
+      const radians = degrees * Math.PI / 180
+      return output('θ = ' + fmt(degrees) + '°', 'radians = ' + fmt(radians) + ' ; sin = ' + fmt(Math.sin(radians)) + ' ; cos = ' + fmt(Math.cos(radians)))
+    },
+    quiz('Which radian angle equals 180°?', '180° 等于多少弧度？',
+      [['pi', 'π', 'π'], ['half', 'π/2', 'π/2'], ['full', '2π', '2π']],
+      'pi', 'One full turn is 360° = 2π radians, so a half turn is π radians.',
+      '一整圈为 360° = 2π 弧度，因此半圈为 π 弧度。')
+  ),
+  activity(
+    'modular-arithmetic', ['modular-arithmetic'], ['模运算'],
+    L('Wrap an integer into a fixed range', '把整数映射到固定范围'),
+    L('Euclidean modulo with positive modulus m always returns an integer from 0 through m−1, including for negative inputs.',
+      '当模数 m 为正整数时，欧几里得模运算总会返回 0 到 m−1 之间的整数，包括输入为负数的情况。'),
+    [number('a', 'Integer a', '整数 a', -7, { min: -1000000000, max: 1000000000, step: 1 }), number('modulus', 'Positive integer modulus m', '正整数模数 m', 5, { min: 1, max: 1000000000, step: 1 })],
+    v => {
+      const a = integer(v, 'a', -1000000000, 1000000000); const modulus = integer(v, 'modulus', 1, 1000000000)
+      return output(fmt(a) + ' mod ' + fmt(modulus), ((a % modulus) + modulus) % modulus)
+    },
+    quiz('What is −7 mod 5 using a result in 0…4?', '若结果取 0…4，−7 mod 5 是多少？',
+      [['three', '3', '3'], ['negative', '−2', '−2'], ['two', '2', '2']],
+      'three', '−7 = (−2)·5 + 3, and 3 lies in the required range.',
+      '−7 = (−2)·5 + 3，且 3 位于规定范围内。')
+  ),
+  activity(
+    'factorials-and-combinations', ['factorials-and-combinations'], ['阶乘与组合'],
+    L('Count arrangements or unordered choices', '计算排列或无序选择的数量'),
+    L('Compare n! with C(n,k). The inputs are whole numbers with 0 ≤ k ≤ n ≤ 30, and choosing does not count different orders twice.',
+      '比较 n! 与 C(n,k)。输入为整数，满足 0 ≤ k ≤ n ≤ 30；组合不会把不同顺序重复计数。'),
+    [
+      select('operation', 'Count', '计数方式', 'combinations', [['factorial', 'Factorial n!', '阶乘 n!'], ['combinations', 'Combinations C(n,k)', '组合 C(n,k)']]),
+      number('n', 'Number of objects n', '对象数量 n', 5, { min: 0, max: 30, step: 1 }),
+      only(number('k', 'Number chosen k', '选择数量 k', 2, { min: 0, max: 30, step: 1 }), v => v.operation === 'combinations')
+    ],
+    v => {
+      const operation = choice(v, 'operation', ['factorial', 'combinations']); const n = integer(v, 'n', 0, 30)
+      let result = 1
+      if (operation === 'factorial') {
+        for (let i = 2; i <= n; i++) result *= i
+        return output(n + '!', result)
+      }
+      const k = integer(v, 'k', 0, n); const terms = Math.min(k, n - k)
+      for (let i = 1; i <= terms; i++) result = result * (n - terms + i) / i
+      return output('C(' + n + ', ' + k + ')', Math.round(result))
+    },
+    quiz('How many unordered pairs can you choose from 4 different objects?', '从 4 个不同对象中选出无序的一对，有多少种方法？',
+      [['six', '6', '6'], ['twelve', '12', '12'], ['four', '4', '4']],
+      'six', 'C(4,2) = 4!/(2!·2!) = 6; swapping the pair does not create another choice.',
+      'C(4,2) = 4!/(2!·2!) = 6；交换一对对象的顺序不会产生新的选择。')
+  ),
+  activity(
+    'probability', ['probability'], ['概率'],
+    L('Count equally likely outcomes', '数出等可能的结果'),
+    L('When all outcomes are equally likely, P(A) is the number of favorable outcomes divided by the positive total.',
+      '当所有结果等可能时，P(A) 等于有利结果的数量除以正的结果总数。'),
+    [number('favorable', 'Favorable outcomes', '有利结果数', 1, { min: 0, max: 1000000000, step: 1 }), number('total', 'Total equally likely outcomes', '等可能结果总数', 6, { min: 1, max: 1000000000, step: 1 })],
+    v => {
+      const total = integer(v, 'total', 1, 1000000000); const favorable = integer(v, 'favorable', 0, total)
+      return output('P(A) = ' + favorable + '/' + total, favorable / total)
+    },
+    quiz('A fair six-sided die has how much probability of an even result?', '公平的六面骰子掷出偶数的概率是多少？',
+      [['half', '3/6 = 1/2', '3/6 = 1/2'], ['third', '1/3', '1/3'], ['sixth', '1/6', '1/6']],
+      'half', 'The favorable outcomes are 2, 4 and 6: three of the six equally likely outcomes.',
+      '有利结果为 2、4、6，共占六个等可能结果中的三个。')
+  ),
+  activity(
+    'expected-value', ['expected-value'], ['期望值'],
+    L('Weight outcomes by their probabilities', '按概率加权各个结果'),
+    L('Compute E[X] = Σxᵢpᵢ for matching arrays of at most 20 entries. Probabilities must sum to 1 within 1e−10 and are never rescaled.',
+      '用长度相同且最多 20 项的数组计算 E[X] = Σxᵢpᵢ。概率之和必须在 1e−10 的容差内等于 1，且不会被自动缩放。'),
+    [text('values', 'Outcomes x (JSON array; |x| ≤ 10¹²)', '结果 x（JSON 数组；|x| ≤ 10¹²）', '[0,10]'), text('probabilities', 'Probabilities p (JSON array)', '概率 p（JSON 数组）', '[0.8,0.2]')],
+    v => {
+      const values = boundedVector(v, 'values'); const p = probabilities(v, 'probabilities'); sameLength(values, p)
+      return output('E[X] = Σ xᵢpᵢ', values.reduce((sum, value, i) => sum + value * p[i], 0))
+    },
+    quiz('A game pays 10 with probability 0.2 and 0 otherwise. What is its expected payout?', '游戏以 0.2 的概率支付 10，其余时候支付 0。期望支付是多少？',
+      [['two', '2', '2'], ['five', '5', '5'], ['ten', '10', '10']],
+      'two', 'The probability-weighted sum is 10·0.2 + 0·0.8 = 2. It need not be an individual outcome.',
+      '概率加权和为 10·0.2 + 0·0.8 = 2。期望值不一定是某次可能出现的结果。')
+  ),
+  activity(
+    'variance-and-standard-deviation', ['variance-and-standard-deviation'], ['方差与标准差'],
+    L('Measure the spread around the mean', '衡量数据相对均值的离散程度'),
+    L('Population variance divides squared deviations by n. The sample estimate divides by n−1 and needs at least two values. Standard deviation is its square root.',
+      '总体方差把离差平方和除以 n。样本估计除以 n−1，且至少需要两个值。标准差是方差的平方根。'),
+    [
+      text('values', 'Values (JSON array; |x| ≤ 10¹²)', '数据（JSON 数组；|x| ≤ 10¹²）', '[1,2,3]'),
+      select('mode', 'Variance convention', '方差约定', 'population', [['population', 'Population: divide by n', '总体：除以 n'], ['sample', 'Sample estimate: divide by n−1', '样本估计：除以 n−1']])
+    ],
+    v => {
+      const mode = choice(v, 'mode', ['population', 'sample']); const values = boundedVector(v, 'values', mode === 'sample' ? 2 : 1)
+      const { scale, scaled } = centered(values)
+      const divisor = values.length - (mode === 'sample' ? 1 : 0)
+      const standardDeviation = scale * Math.sqrt(scaled.reduce((sum, value) => sum + value * value, 0) / divisor)
+      return output('Σ(xᵢ − x̄)² / ' + divisor, 'variance = ' + fmt(standardDeviation * standardDeviation) + ' ; standard deviation = ' + fmt(standardDeviation))
+    },
+    quiz('For [1,2,3], how does sample variance compare with population variance?', '对 [1,2,3]，样本方差与总体方差有什么关系？',
+      [['larger', 'Sample 1; population 2/3', '样本为 1；总体为 2/3'], ['same', 'Both are 2/3', '两者都为 2/3'], ['smaller', 'Sample 2/3; population 1', '样本为 2/3；总体为 1']],
+      'larger', 'The squared deviations sum to 2. Divide by n−1=2 for the sample estimate or n=3 for the population.',
+      '离差平方和为 2。样本估计除以 n−1=2，总体方差除以 n=3。')
+  ),
+  activity(
+    'conditional-probability-and-bayes', ['conditional-probability-and-bayes'], ['条件概率与贝叶斯定理'],
+    L('Update a prior after evidence', '根据证据更新先验概率'),
+    L('Use Bayes’ rule with prior P(A), likelihood P(B|A), and P(B|not A). The evidence probability P(B) must be positive.',
+      '用先验 P(A)、似然 P(B|A) 和 P(B|非 A) 应用贝叶斯定理。证据概率 P(B) 必须为正。'),
+    [number('prior', 'Prior P(A)', '先验 P(A)', 0.01, { min: 0, max: 1 }), number('likelihood', 'Likelihood P(B|A)', '似然 P(B|A)', 0.99, { min: 0, max: 1 }), number('falsePositive', 'P(B|not A), false-positive rate', 'P(B|非 A)，假阳性率', 0.05, { min: 0, max: 1 })],
+    v => {
+      const prior = numeric(v, 'prior', 0, 1); const likelihood = numeric(v, 'likelihood', 0, 1); const falsePositive = numeric(v, 'falsePositive', 0, 1)
+      const joint = prior * likelihood; const evidence = joint + (1 - prior) * falsePositive
+      if (evidence === 0) throw new Error('P(B) must be positive; conditioning on impossible evidence is undefined.')
+      return output('P(A|B) = P(B|A)P(A) / P(B)', joint / evidence)
+    },
+    quiz('With prior 1%, likelihood 99% and false-positive rate 5%, is P(A|B) about 99%?', '先验为 1%、似然为 99%、假阳性率为 5% 时，P(A|B) 约为 99% 吗？',
+      [['base-rate', 'No, it is about 16.7%', '不是，约为 16.7%'], ['likelihood', 'Yes, likelihood equals the posterior', '是，似然就是后验'], ['prior', 'No, it stays exactly 1%', '不是，它始终精确等于 1%']],
+      'base-rate', 'P(B)=0.99·0.01+0.05·0.99=0.0594, so the posterior is 0.0099/0.0594 ≈ 0.167.',
+      'P(B)=0.99·0.01+0.05·0.99=0.0594，因此后验为 0.0099/0.0594 ≈ 0.167。')
+  ),
+  activity(
+    'covariance-and-correlation', ['covariance-and-correlation'], ['协方差与相关性'],
+    L('Compare paired changes', '比较成对数据的变化'),
+    L('For 2–20 paired values, compute population covariance and Pearson correlation. Correlation needs variation in both arrays and does not prove causation.',
+      '对 2–20 对数据计算总体协方差和皮尔逊相关系数。两组数据都必须有变化；相关性不能证明因果关系。'),
+    [text('x', 'Paired x values (JSON; |x| ≤ 10¹²)', '成对的 x 数据（JSON；|x| ≤ 10¹²）', '[1,2,3]'), text('y', 'Paired y values (JSON; |y| ≤ 10¹²)', '成对的 y 数据（JSON；|y| ≤ 10¹²）', '[2,4,6]')],
+    v => {
+      const x = boundedVector(v, 'x', 2); const y = boundedVector(v, 'y', 2); sameLength(x, y)
+      if (x.every(value => value === x[0]) || y.every(value => value === y[0])) throw new Error('Pearson correlation is undefined for a constant array.')
+      const a = centered(x); const b = centered(y)
+      if (a.scale === 0 || b.scale === 0) throw new Error('Pearson correlation needs representable variation in both arrays.')
+      const cross = a.scaled.reduce((sum, value, i) => sum + value * b.scaled[i], 0)
+      const normX = Math.hypot(...a.scaled); const normY = Math.hypot(...b.scaled)
+      const covariance = (cross / x.length) * a.scale * b.scale
+      const correlation = Math.max(-1, Math.min(1, cross / (normX * normY)))
+      return output('cov(X,Y) = Σ(xᵢ−x̄)(yᵢ−ȳ)/n ; r = cov/(σₓσᵧ)', 'covariance = ' + fmt(covariance) + ' ; correlation = ' + fmt(correlation))
+    },
+    quiz('If y = 2x + 5 and x varies, what is Pearson correlation?', '若 y = 2x + 5 且 x 有变化，皮尔逊相关系数是多少？',
+      [['positive', '1', '1'], ['double', '2', '2'], ['zero', '0', '0']],
+      'positive', 'A positive exact linear relationship has correlation 1. Scaling and adding a constant do not change it.',
+      '精确的正线性关系的相关系数为 1。正比例缩放与加上常数不会改变它。')
+  ),
+  activity(
+    'entropy', ['entropy'], ['熵'],
+    L('Measure uncertainty in bits', '以比特衡量不确定性'),
+    L('Shannon entropy is H = −Σpᵢlog₂(pᵢ). Use 1–20 probabilities summing to 1 within 1e−10; zero-probability outcomes contribute 0.',
+      '香农熵为 H = −Σpᵢlog₂(pᵢ)。输入 1–20 个概率，其和须在 1e−10 的容差内等于 1；零概率结果的贡献为 0。'),
+    [text('probabilities', 'Outcome probabilities (JSON array)', '各结果的概率（JSON 数组）', '[0.5,0.5]')],
+    v => {
+      const p = probabilities(v, 'probabilities')
+      return output('H = −Σ pᵢ log₂(pᵢ) (bits)', p.reduce((sum, probability) => probability === 0 ? sum : sum - probability * Math.log2(probability), 0))
+    },
+    quiz('What is the entropy of a fair coin in bits?', '公平硬币的熵是多少比特？',
+      [['one', '1 bit', '1 比特'], ['zero', '0 bits', '0 比特'], ['two', '2 bits', '2 比特']],
+      'one', 'Two equally likely outcomes give −2·(1/2)·log₂(1/2) = 1 bit.',
+      '两个等可能结果给出 −2·(1/2)·log₂(1/2) = 1 比特。')
+  ),
+  activity(
+    'ml-weighted-sum', ['weighted-sums-and-bias'], [],
+    L('Combine two features and a bias', '组合两个特征与偏置'),
+    L('Start with the first hidden unit for x=[1,1]: z = w₁x₁ + w₂x₂ + b = 0.8. Change a weight, feature or bias to see its contribution.',
+      '从 x=[1,1] 的第一个隐藏单元开始：z = w₁x₁ + w₂x₂ + b = 0.8。改变权重、特征或偏置，观察它的贡献。'),
+    [
+      number('w1', 'Weight w₁', '权重 w₁', 0.5, { min: -1e6, max: 1e6 }), number('x1', 'Feature x₁', '特征 x₁', 1, { min: -1e6, max: 1e6 }),
+      number('w2', 'Weight w₂', '权重 w₂', 0.5, { min: -1e6, max: 1e6 }), number('x2', 'Feature x₂', '特征 x₂', 1, { min: -1e6, max: 1e6 }),
+      number('bias', 'Bias b', '偏置 b', -0.2, { min: -1e6, max: 1e6 })
+    ],
+    v => {
+      const w1 = numeric(v, 'w1', -1e6, 1e6); const x1 = numeric(v, 'x1', -1e6, 1e6)
+      const w2 = numeric(v, 'w2', -1e6, 1e6); const x2 = numeric(v, 'x2', -1e6, 1e6); const bias = numeric(v, 'bias', -1e6, 1e6)
+      return output('z = w₁x₁ + w₂x₂ + b', w1 * x1 + w2 * x2 + bias)
+    },
+    quiz('If both feature values are zero, what is z?', '若两个特征值都为零，z 是多少？',
+      [['bias', 'The bias b', '偏置 b'], ['weights', 'The sum of the weights', '两个权重的和'], ['zero', 'Always zero', '总是零']],
+      'bias', 'Both weighted feature terms vanish, leaving the bias.',
+      '两个加权特征项都为零，只剩下偏置。')
+  ),
+  activity(
+    'ml-softmax', ['from-scores-to-probabilities'], [],
+    L('Turn scores into a distribution', '把得分变成概率分布'),
+    L('Softmax exponentiates scores and divides by their sum. Subtracting the largest score first gives the same probabilities without overflow; use 1–8 scores.',
+      'Softmax 对得分取指数，再除以指数之和。先减去最大得分可避免溢出，并保持概率不变；输入 1–8 个得分。'),
+    [text('scores', 'Scores (JSON array; |score| ≤ 10⁶)', '得分（JSON 数组；|得分| ≤ 10⁶）', '[0.3,-0.3]')],
+    v => {
+      const logits = scores(v); const max = Math.max(...logits)
+      const exponentials = logits.map(score => Math.exp(score - max)); const total = exponentials.reduce((sum, value) => sum + value, 0)
+      return output('pᵢ = exp(zᵢ − max(z)) / Σ exp(zⱼ − max(z))', exponentials.map(value => value / total))
+    },
+    quiz('What happens to softmax if 100 is added to every score?', '给每个得分都加上 100，softmax 会怎样变化？',
+      [['same', 'The probabilities stay the same', '概率保持不变'], ['increase', 'Each probability increases by 100', '每个概率都增加 100'], ['uniform', 'The probabilities become uniform', '概率变成均匀分布']],
+      'same', 'A shared factor exp(100) appears in every numerator and the denominator, so it cancels.',
+      '每个分子与分母都带有共同因子 exp(100)，因此该因子会约掉。')
+  ),
+  activity(
+    'ml-cross-entropy', ['measuring-the-mistake'], [],
+    L('Measure the loss of a target class', '衡量目标类别的损失'),
+    L('For two scores, cross-entropy is −log p(target). Compute it directly with log-sum-exp so a very unlikely target still has a finite loss.',
+      '对两个得分，交叉熵为 −log p(目标类别)。直接用 log-sum-exp 计算，即使目标类别的概率极小也能得到有限损失。'),
+    [text('scores', 'Two class scores (JSON; |score| ≤ 10⁶)', '两个类别得分（JSON；|得分| ≤ 10⁶）', '[0.3,-0.3]'), number('target', 'Target class index (0 or 1)', '目标类别下标（0 或 1）', 0, { min: 0, max: 1, step: 1 })],
+    v => {
+      const logits = scores(v, 2); const target = integer(v, 'target', 0, 1); const max = Math.max(...logits)
+      const loss = max - logits[target] + Math.log(logits.reduce((sum, score) => sum + Math.exp(score - max), 0))
+      return output('loss = log Σ exp(zᵢ) − z_target (natural log)', loss)
+    },
+    quiz('If the target class has probability 1/2, what is its cross-entropy loss?', '目标类别概率为 1/2 时，交叉熵损失是多少？',
+      [['log-two', 'ln(2), about 0.693', 'ln(2)，约为 0.693'], ['zero', '0', '0'], ['negative', '−1/2', '−1/2']],
+      'log-two', '−ln(1/2) = ln(2). A more confident correct prediction has lower loss.',
+      '−ln(1/2) = ln(2)。正确预测的置信度越高，损失越小。')
+  ),
+  activity(
+    'ml-gradient-step', ['gradient-descent'], [],
+    L('Train one logistic weight', '训练一个逻辑回归权重'),
+    L('For one labeled sample, p = sigmoid(wx) and the cross-entropy gradient is (p−y)x. Update w once by subtracting η times that gradient; a large step can increase loss.',
+      '对一个带标签样本，p = sigmoid(wx)，交叉熵梯度为 (p−y)x。减去 η 乘以梯度来更新一次 w；步长过大可能使损失增加。'),
+    [
+      number('weight', 'Old weight w', '旧权重 w', 0, { min: -1e6, max: 1e6 }), number('x', 'Feature x', '特征 x', 2, { min: -1e6, max: 1e6 }),
+      number('target', 'Target y (0 or 1)', '标签 y（0 或 1）', 1, { min: 0, max: 1, step: 1 }), number('eta', 'Learning rate η', '学习率 η', 0.1, { min: 0, max: 10 })
+    ],
+    v => {
+      const weight = numeric(v, 'weight', -1e6, 1e6); const x = numeric(v, 'x', -1e6, 1e6); const target = integer(v, 'target', 0, 1); const eta = numeric(v, 'eta', 0, 10)
+      const score = weight * x
+      const exponential = Math.exp(-Math.abs(score)); const probability = score >= 0 ? 1 / (1 + exponential) : exponential / (1 + exponential)
+      const gradient = (probability - target) * x; const next = weight - eta * gradient
+      return output('w_new = w − η(p − y)x', 'p = ' + fmt(probability) + ' ; gradient = ' + fmt(gradient) + ' ; w: ' + fmt(weight) + ' → ' + fmt(next) + ' ; loss: ' + fmt(logisticLoss(score, target)) + ' → ' + fmt(logisticLoss(next * x, target)))
+    },
+    quiz('For w=0, x=2 and y=1, which direction does a positive gradient-descent step move w?', '当 w=0、x=2、y=1 时，正学习率的梯度下降会把 w 朝哪个方向移动？',
+      [['increase', 'Increase w: the gradient is −1', '增大 w：梯度为 −1'], ['decrease', 'Decrease w: the gradient is +1', '减小 w：梯度为 +1'], ['fixed', 'Keep w at zero for every learning rate', '任意学习率下都保持 w 为零']],
+      'increase', 'p=0.5, so (p−y)x=(0.5−1)·2=−1. Subtracting a negative gradient increases the weight.',
+      'p=0.5，所以 (p−y)x=(0.5−1)·2=−1。减去负梯度会增大权重。')
   ),
   activity(
     'set-builder', ['set-builder-notation'], [],

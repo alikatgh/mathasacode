@@ -42,6 +42,7 @@ const resources = [['/CONTRIBUTING.html', words.contribute], ['/run-locally.html
 
 export function guideVersionPath(pathname) {
   const path = pathname.replace(/\/+$/, '');
+  if (/\/machine-learning(?:\.html)?$/.test(path)) return '/machine-learning.html';
   if (/\/README-zh(?:\.html)?$/.test(path)) return '/README-zh.html';
   if (/\/PYTHON-README(?:\.html)?$/.test(path)) return '/PYTHON-README.html';
   return '/';
@@ -69,6 +70,12 @@ function TopicSidebar({ controller, snapshot, labels, model, searchRef, onNaviga
   }, [snapshot.topicIndex, normalized]);
   return <Sidebar collapsible="none" className="topic-sidebar w-full" aria-label={words.contents}>
     <SidebarHeader className="gap-2 p-3 pb-1">
+      <nav aria-label={zh ? '学习内容' : 'Learning sections'} className="grid grid-cols-2 gap-1 rounded-lg bg-muted/60 p-1">
+        {[[zh ? '数学参考' : 'Math reference', '/'], [zh ? 'ML · 最终挑战' : 'ML · final boss', '/machine-learning.html#the-final-boss']].map(([label, url]) => {
+          const active = url.startsWith('/machine-learning') ? location.pathname.startsWith('/machine-learning') : !location.pathname.startsWith('/machine-learning');
+          return <Button key={url} asChild variant={active ? 'secondary' : 'ghost'} size="sm" className="h-7 min-w-0 px-1 text-[11px]"><a href={url} aria-current={active ? 'page' : undefined}>{label}</a></Button>;
+        })}
+      </nav>
       <div className="relative flex items-center"><Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" aria-hidden="true" /><Input ref={searchRef} type="search" className="pr-10 pl-9" aria-label={words.search} placeholder={words.search} value={query} onChange={event => setQuery(event.target.value)} />{query ? <Button type="button" variant="ghost" size="icon-sm" className="absolute right-1" aria-label={words.clear} onClick={() => { setQuery(''); searchRef.current?.focus(); }}><X /></Button> : !mobile && <kbd className="pointer-events-none absolute right-3 text-[10px] text-muted-foreground">⌘ K</kbd>}</div>
     </SidebarHeader>
     <SidebarContent className="min-h-0 overflow-hidden">
@@ -162,7 +169,7 @@ function App({ controller, labels, model, examples, comparisons }) {
   const version = guideVersionPath(location.pathname);
   const settings = <div className="sidebar-settings flex items-center gap-1">
     <a href="/" className="sidebar-logo" aria-label="Math as Code"><span className="sidebar-logo__crop" aria-hidden="true"><img className="sidebar-logo__image" src="/assets/logo.png" width="1254" height="1254" alt="" decoding="async" /></span></a>
-    <NativeSelect size="sm" aria-label={words.versions} value={version} onChange={event => { location.href = event.target.value; }}><NativeSelectOption value="/">English · JS</NativeSelectOption><NativeSelectOption value="/PYTHON-README.html">English · Python</NativeSelectOption><NativeSelectOption value="/README-zh.html">中文</NativeSelectOption></NativeSelect>
+    <NativeSelect size="sm" aria-label={words.versions} value={version} onChange={event => { location.href = event.target.value; }}><NativeSelectOption value="/">English · JS</NativeSelectOption><NativeSelectOption value="/PYTHON-README.html">English · Python</NativeSelectOption><NativeSelectOption value="/README-zh.html">中文</NativeSelectOption>{version === '/machine-learning.html' && <NativeSelectOption value="/machine-learning.html">ML · English</NativeSelectOption>}</NativeSelect>
     <IconButton label={words.theme} onClick={() => setDark(value => !value)}>{dark ? <Sun /> : <Moon />}</IconButton>
     <IconButton label={words.source} asChild><a href="https://github.com/alikatgh/mathasacode"><Code2 /></a></IconButton>
   </div>;

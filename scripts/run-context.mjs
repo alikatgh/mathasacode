@@ -100,7 +100,7 @@ const rustDefinitions = new Set([
  */
 export function prepareRunnableExample({ exampleId, language, source }) {
   if (typeof source !== 'string') throw new TypeError('Example source must be a string.');
-  const match = /^(en|py|zh)-(\d+)(?:-\d+)?$/.exec(exampleId || '');
+  const match = /^(en|py|zh|ml)-(\d+)(?:-\d+)?$/.exec(exampleId || '');
   const id = match ? `${match[1]}-${Number(match[2])}` : '';
   if (language === 'javascript' && setNotationExamples.has(id)) {
     return { source, runnable: false, note: 'This is illustrative set notation, not executable JavaScript.' };

@@ -6,7 +6,7 @@
 
 动机:学术论文可能会吓着自学游戏和图形的程序猿:)
 
-这份参考涵盖下方目录中的符号，并补充了矩阵乘法、张量积、Delta、导数、积分和一个图形学实例。如果你发现错误或者想要贡献，请[open a ticket](https://github.com/alikatgh/mathasacode/issues)或发一个 PR。
+这份参考涵盖下方目录中的符号，并补充了矩阵乘法、张量积、Delta、导数、积分、概率统计和一个图形学实例。如果你发现错误或者想要贡献，请[open a ticket](https://github.com/alikatgh/mathasacode/issues)或发一个 PR。
 
 
 > **注意**： 简洁起见，有些代码示例使用了[npm 包](https://www.npmjs.com/)。你可以到他们的GitHub repos来查看实现的详细情况。
@@ -63,6 +63,16 @@
   - [不定积分](#不定积分)
   - [定积分](#定积分)
 - [图形学实例：Lambertian 反射](#图形学实例lambertian-反射)
+- [幂与对数](#幂与对数)
+- [三角函数](#三角函数)
+- [模运算](#模运算)
+- [阶乘与组合](#阶乘与组合)
+- [概率](#概率)
+- [期望值](#期望值)
+- [方差与标准差](#方差与标准差)
+- [条件概率与贝叶斯定理](#条件概率与贝叶斯定理)
+- [协方差与相关性](#协方差与相关性)
+- [熵](#熵)
 - [更多...](#更多)
 
 ## 变量名约定
@@ -1421,6 +1431,278 @@ lambertianReflection(reflectance, irradiance, normal, lightDirection)
 ```
 
 这个数值使用一个线性颜色通道；对 RGB 可以逐通道计算。余弦已用于将光束辐照度投影到表面，不应再乘一次。背向光源时 `max(0, ...)` 给出 0；这里没有加入阴影、镜面反射、间接光、色调映射或显示器的颜色编码。这是对上述反射模型的一个明确特例，不是完整渲染器。
+
+## 幂与对数
+
+乘方把底数 *b* 提升到指数 *y*；对数则问：哪个指数能得到 *x*？实数对数要求 `b > 0`、`b ≠ 1` 且 `x > 0`。
+
+![powers and logarithms 1](https://latex.codecogs.com/svg.latex?b%5Ey%3Dx%5Cquad%5CLongleftrightarrow%5Cquad%5Clog_b%20x%3Dy%2C%5Cqquad%20%5Clog_b%20x%3D%5Cfrac%7B%5Cln%20x%7D%7B%5Cln%20b%7D)
+
+<!-- b^y=x\quad\Longleftrightarrow\quad\log_b x=y,\qquad \log_b x=\frac{\ln x}{\ln b} -->
+
+这里 `ln` 是以 *e* 为底的自然对数。先乘方，再求回指数：
+
+在 JavaScript 中：
+
+```js
+const base = 2
+const exponent = 3
+const x = 8
+const power = Math.pow(base, exponent)
+const logarithm = Math.log(x) / Math.log(base)
+console.log(`power = ${power.toFixed(6)}`)
+console.log(`logarithm = ${logarithm.toFixed(6)}`)
+```
+
+输出为 `power = 8.000000` 和 `logarithm = 3.000000`，因为 2³ = 8。名为 `log` 的函数不一定使用相同底数；换底公式明确了底数。零和负数没有实数对数。
+
+## 三角函数
+
+在直角三角形中，锐角 *θ* 的正弦和余弦是边长之比。在单位圆上，它们分别是纵坐标和横坐标，因此也能定义任意实数角度的正弦和余弦。
+
+![trigonometry 1](https://latex.codecogs.com/svg.latex?%5Csin%5Ctheta%3D%5Cfrac%7B%5Ctext%7Bopposite%7D%7D%7B%5Ctext%7Bhypotenuse%7D%7D%2C%5Cqquad%20%5Ccos%5Ctheta%3D%5Cfrac%7B%5Ctext%7Badjacent%7D%7D%7B%5Ctext%7Bhypotenuse%7D%7D)
+
+<!-- \sin\theta=\frac{\text{opposite}}{\text{hypotenuse}},\qquad \cos\theta=\frac{\text{adjacent}}{\text{hypotenuse}} -->
+
+![trigonometry 2](https://latex.codecogs.com/svg.latex?%5Ctheta_%7B%5Cmathrm%7Brad%7D%7D%3D%5Ctheta_%7B%5Cmathrm%7Bdeg%7D%7D%5Cfrac%7B%5Cpi%7D%7B180%7D)
+
+<!-- \theta_{\mathrm{rad}}=\theta_{\mathrm{deg}}\frac{\pi}{180} -->
+
+调用三角函数前，先把 30 度换算成弧度：
+
+在 JavaScript 中：
+
+```js
+const degrees = 30
+const radians = degrees * Math.PI / 180
+console.log(`sine = ${Math.sin(radians).toFixed(6)}`)
+console.log(`cosine = ${Math.cos(radians).toFixed(6)}`)
+```
+
+输出为 `sine = 0.500000` 和 `cosine = 0.866025`。这些标准库函数接受弧度；直接传入 `30` 表示 30 弧度，而不是 30 度。浮点结果近似于精确值 1/2 和 √3/2。
+
+## 模运算
+
+给定整数 *a* 和正整数模数 *m*，规范余数 *r* 是从 *a* 中减去某个整数倍的 *m* 后，落在 0 到 `m − 1` 中的唯一整数。同余符号 `≡` 表示两数之差是 *m* 的整数倍。
+
+![modular arithmetic 1](https://latex.codecogs.com/svg.latex?a%3Dqm%2Br%2C%5Cquad%20q%5Cin%5Cmathbb%20Z%2C%5Cquad%200%5Cle%20r%3Cm%2C%5Cqquad%20a%5Cequiv%20r%5Cpmod%20m)
+
+<!-- a=qm+r,\quad q\in\mathbb Z,\quad 0\le r<m,\qquad a\equiv r\pmod m -->
+
+把一个较小负整数的余数规范化：
+
+在 JavaScript 中：
+
+```js
+const a = -8
+const modulus = 5
+const remainder = ((a % modulus) + modulus) % modulus
+console.log(`remainder = ${remainder}`)
+```
+
+输出为 `remainder = 2`，因为 −8 = (−2) × 5 + 2。JavaScript、C 和 Rust 的 `%` 可能返回负余数；Python 在模数为正时已经返回非负余数。这里的规范化对所有语言版本中的这些固定小整数都适用。模数不能为零。
+
+## 阶乘与组合
+
+非负整数 *n* 的阶乘 `n!` 是从 1 到 *n* 的整数之积，空积规定为 `0! = 1`。二项式系数 `C(n, k)`（读作“n 选 k”）表示从 *n* 个不同对象中选出 *k* 个、不考虑顺序的方法数；要求 *k* 为整数且 `0 ≤ k ≤ n`。
+
+![factorials and combinations 1](https://latex.codecogs.com/svg.latex?n%21%3D%5Cprod_%7Bi%3D1%7D%5E%7Bn%7Di%2C%5Cqquad%200%21%3D1)
+
+<!-- n!=\prod_{i=1}^{n}i,\qquad 0!=1 -->
+
+![factorials and combinations 2](https://latex.codecogs.com/svg.latex?%5Cbinom%20nk%3D%5Cfrac%7Bn%21%7D%7Bk%21%28n-k%29%21%7D)
+
+<!-- \binom nk=\frac{n!}{k!(n-k)!} -->
+
+先计算从五个对象中选两个所需的阶乘：
+
+在 JavaScript 中：
+
+```js
+const n = 5
+const k = 2
+const factorials = [1]
+for (let i = 1; i <= n; i++) {
+  factorials.push(factorials[i - 1] * i)
+}
+const combinations = factorials[n] / (factorials[k] * factorials[n - k])
+console.log(`n_factorial = ${factorials[n]}`)
+console.log(`zero_factorial = ${factorials[0]}`)
+console.log(`combinations = ${combinations}`)
+```
+
+输出为 `n_factorial = 120`、`zero_factorial = 1` 和 `combinations = 10`。先选 A 再选 B 与先选 B 再选 A 是同一个组合；如果计算顺序，结果则为 20。这些示例固定使用 `n = 5`；阶乘增长很快，可能使定长整数溢出，或使 JavaScript 数值失去精度。
+
+## 概率
+
+有限样本空间 *Ω* 列出所有可能结果，事件 *A* 是这些结果的子集。每个结果的概率 *pᵢ* 非负，所有结果的概率之和为 1。如果每个结果等可能，事件 *A* 的概率就是计数之比；`|A|` 表示集合 *A* 的元素个数。
+
+![probability 1](https://latex.codecogs.com/svg.latex?P%28A%29%3D%5Csum_%7Bi%5Cin%20A%7Dp_i%2C%5Cqquad%20P%28A%29%3D%5Cfrac%7B%7CA%7C%7D%7B%7C%5COmega%7C%7D%5C%20%5Ctext%7Bfor%20equally%20likely%20outcomes%7D)
+
+<!-- P(A)=\sum_{i\in A}p_i,\qquad P(A)=\frac{|A|}{|\Omega|}\ \text{for equally likely outcomes} -->
+
+对于一枚公平的六面骰子，统计点数为偶数的结果：
+
+在 JavaScript 中：
+
+```js
+const outcomes = [1, 2, 3, 4, 5, 6]
+let favorable = 0
+for (const outcome of outcomes) {
+  if (outcome % 2 === 0) favorable++
+}
+const probability = favorable / outcomes.length
+console.log(`probability = ${probability.toFixed(6)}`)
+```
+
+输出为 `probability = 0.500000`，因为三个偶数结果的概率为 3/6。按个数计算要求各结果等可能，而且样本空间非空。如果骰子不均匀，应改为把点数 2、4、6 各自的概率相加。
+
+## 期望值
+
+离散随机变量 *X* 为每个可能结果赋予数值 *xᵢ*。它的期望值 `E[X]` 是按概率加权的平均值。这里结果个数有限，每个 *pᵢ* 非负，且所有概率之和为 1。
+
+![expected value 1](https://latex.codecogs.com/svg.latex?%5Coperatorname%7BE%7D%5BX%5D%3D%5Csum_%7Bi%3D1%7D%5E%7Bn%7Dx_i%20p_i%2C%5Cqquad%20p_i%3DP%28X%3Dx_i%29)
+
+<!-- \operatorname{E}[X]=\sum_{i=1}^{n}x_i p_i,\qquad p_i=P(X=x_i) -->
+
+假设奖励以 0.75 的概率为 0，以 0.25 的概率为 10：
+
+在 JavaScript 中：
+
+```js
+const values = [0, 10]
+const probabilities = [0.75, 0.25]
+let expected = 0
+for (let i = 0; i < values.length; i++) {
+  expected += values[i] * probabilities[i]
+}
+console.log(`expected = ${expected.toFixed(6)}`)
+```
+
+输出为 `expected = 2.500000`，计算为 0 × 0.75 + 10 × 0.25。期望不一定是可能结果：这里任何一次奖励都不会是 2.5。它描述在概率不变时反复独立抽取的长期平均值，并不保证单次奖励。
+
+## 方差与标准差
+
+方差通过平均偏离均值 *μ* 的平方来衡量分散程度。对于由 *n* 个等权数值组成的非空有限总体，总体方差记作 `σ²`，其平方根（标准差）记作 `σ`。
+
+![variance and standard deviation 1](https://latex.codecogs.com/svg.latex?%5Cmu%3D%5Cfrac1n%5Csum_%7Bi%3D1%7D%5En%20x_i%2C%5Cqquad%20%5Csigma%5E2%3D%5Cfrac1n%5Csum_%7Bi%3D1%7D%5En%28x_i-%5Cmu%29%5E2%2C%5Cqquad%20%5Csigma%3D%5Csqrt%7B%5Csigma%5E2%7D)
+
+<!-- \mu=\frac1n\sum_{i=1}^n x_i,\qquad \sigma^2=\frac1n\sum_{i=1}^n(x_i-\mu)^2,\qquad \sigma=\sqrt{\sigma^2} -->
+
+把下面四个数视为整个总体：
+
+在 JavaScript 中：
+
+```js
+const values = [2, 4, 6, 8]
+const mean = values.reduce((total, value) => total + value, 0) / values.length
+let squaredDeviations = 0
+for (const value of values) {
+  squaredDeviations += (value - mean) ** 2
+}
+const variance = squaredDeviations / values.length
+const standardDeviation = Math.sqrt(variance)
+console.log(`variance = ${variance.toFixed(6)}`)
+console.log(`standard_deviation = ${standardDeviation.toFixed(6)}`)
+```
+
+均值为 5，偏差平方和为 20。输出为 `variance = 5.000000` 和 `standard_deviation = 2.236068`。方差的单位是原单位的平方，标准差则保留原单位。如果要用独立同分布样本估计总体方差，通常的无偏样本方差改为除以 `n − 1`，并要求 `n > 1`。
+
+## 条件概率与贝叶斯定理
+
+条件概率 `P(A | B)` 表示把范围限制在事件 *B* 后，事件 *A* 发生的概率。交集 `A ∩ B` 表示两个事件同时发生；作为条件的事件必须满足 `P(B) > 0`。
+
+![conditional probability and Bayes 1](https://latex.codecogs.com/svg.latex?P%28A%5Cmid%20B%29%3D%5Cfrac%7BP%28A%5Ccap%20B%29%7D%7BP%28B%29%7D)
+
+<!-- P(A\mid B)=\frac{P(A\cap B)}{P(B)} -->
+
+![conditional probability and Bayes 2](https://latex.codecogs.com/svg.latex?P%28A%5Cmid%20B%29%3D%5Cfrac%7BP%28B%5Cmid%20A%29P%28A%29%7D%7BP%28B%5Cmid%20A%29P%28A%29%2BP%28B%5Cmid%5Cneg%20A%29P%28%5Cneg%20A%29%7D)
+
+<!-- P(A\mid B)=\frac{P(B\mid A)P(A)}{P(B\mid A)P(A)+P(B\mid\neg A)P(\neg A)} -->
+
+贝叶斯定理把条件的方向反过来。在一个虚构的检测器模型中，*A* 表示目标存在，*B* 表示检测器发出信号。目标的先验概率为 0.01，目标存在时发出信号的概率为 0.90，目标不存在时误报的概率为 0.05：
+
+在 JavaScript 中：
+
+```js
+const prior = 0.01
+const truePositive = 0.90
+const falsePositive = 0.05
+const joint = truePositive * prior
+const evidence = joint + falsePositive * (1 - prior)
+const posterior = joint / evidence
+console.log(`evidence = ${evidence.toFixed(6)}`)
+console.log(`posterior = ${posterior.toFixed(6)}`)
+```
+
+输出为 `evidence = 0.058500` 和 `posterior = 0.153846`：在这个模型中，约 15.38% 的信号对应真实目标。分母必须包含真实信号和误报。`P(B | A) = 0.90` 不等于 `P(A | B)`，先验的基础发生率会影响结果。如果信号根本不可能出现，分母为零，这个条件概率就没有定义。
+
+## 协方差与相关性
+
+对于 *n* 对观测值 `(xᵢ, yᵢ)`，总体协方差是它们分别偏离均值 *μₓ*、*μᵧ* 的乘积的平均值。正值表示高于各自均值的数值倾向于同时出现；负值表示相反趋势。两个列表必须非空且长度相同。
+
+![covariance and correlation 1](https://latex.codecogs.com/svg.latex?%5Coperatorname%7BCov%7D%28X%2CY%29%3D%5Cfrac1n%5Csum_%7Bi%3D1%7D%5En%28x_i-%5Cmu_x%29%28y_i-%5Cmu_y%29)
+
+<!-- \operatorname{Cov}(X,Y)=\frac1n\sum_{i=1}^n(x_i-\mu_x)(y_i-\mu_y) -->
+
+![covariance and correlation 2](https://latex.codecogs.com/svg.latex?%5Crho%3D%5Cfrac%7B%5Coperatorname%7BCov%7D%28X%2CY%29%7D%7B%5Csigma_x%5Csigma_y%7D%2C%5Cqquad%20%5Csigma_x%3E0%2C%5C%20%5Csigma_y%3E0)
+
+<!-- \rho=\frac{\operatorname{Cov}(X,Y)}{\sigma_x\sigma_y},\qquad \sigma_x>0,\ \sigma_y>0 -->
+
+Pearson 相关系数 *ρ* 再除以两个总体标准差，得到介于 −1 和 1 之间、没有单位的线性关联度量。对三组成对数值计算这两个量：
+
+在 JavaScript 中：
+
+```js
+const x = [1, 2, 3]
+const y = [2, 4, 5]
+const count = x.length
+const meanX = x.reduce((total, value) => total + value, 0) / count
+const meanY = y.reduce((total, value) => total + value, 0) / count
+let cross = 0
+let squaresX = 0
+let squaresY = 0
+for (let i = 0; i < count; i++) {
+  const dx = x[i] - meanX
+  const dy = y[i] - meanY
+  cross += dx * dy
+  squaresX += dx * dx
+  squaresY += dy * dy
+}
+const covariance = cross / count
+const varianceX = squaresX / count
+const varianceY = squaresY / count
+const correlation = covariance / Math.sqrt(varianceX * varianceY)
+console.log(`covariance = ${covariance.toFixed(6)}`)
+console.log(`correlation = ${correlation.toFixed(6)}`)
+```
+
+输出为 `covariance = 1.000000` 和 `correlation = 0.981981`。这些成对数值有很强的正线性关联，但这不能证明因果关系。常数列表的标准差为零，所以相关系数没有定义。这里算的是总体协方差；通常的样本协方差使用 `n − 1`，并与样本方差保持一致。
+
+## 熵
+
+对于有限离散分布，香农熵衡量每个结果的平均信息量。每个 *pᵢ* 是一个结果的概率；概率非负且总和为 1，对数的底数决定单位。
+
+![entropy 1](https://latex.codecogs.com/svg.latex?H_2%3D-%5Csum_%7Bi%3D1%7D%5En%20p_i%5Clog_2%20p_i%2C%5Cqquad%200%5Clog_2%200%3A%3D0)
+
+<!-- H_2=-\sum_{i=1}^n p_i\log_2 p_i,\qquad 0\log_2 0:=0 -->
+
+以 2 为底时，熵的单位是比特。在求对数前跳过概率为零的项：
+
+在 JavaScript 中：
+
+```js
+const probabilities = [0.5, 0.25, 0.25, 0]
+let entropyBits = 0
+for (const probability of probabilities) {
+  if (probability > 0) {
+    entropyBits -= probability * Math.log2(probability)
+  }
+}
+console.log(`entropy_bits = ${entropyBits.toFixed(6)}`)
+```
+
+输出为 `entropy_bits = 1.500000`，计算为 0.5 × 1 + 0.25 × 2 + 0.25 × 2。`0 log 0 = 0` 是按极限作出的约定；直接求零的对数可能得到非有限结果。若使用自然对数，熵的单位则是奈特，而不是比特。
 
 ## 更多...
 

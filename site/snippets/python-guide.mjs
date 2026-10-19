@@ -30,6 +30,16 @@ int main(void) {
 };
 
 export const pythonGuide = {
+  64: { english: 62 },
+  65: { english: 63 },
+  66: { english: 64 },
+  67: { english: 65 },
+  68: { english: 66 },
+  69: { english: 67 },
+  70: { english: 68 },
+  71: { english: 69 },
+  72: { english: 70 },
+  73: { english: 71 },
   1: {
     javascript: String.raw`function isClose(a, b, relTol = 1e-9, absTol = 0) {
   return Math.abs(a - b) <= Math.max(relTol * Math.max(Math.abs(a), Math.abs(b)), absTol);

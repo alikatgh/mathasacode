@@ -8,9 +8,10 @@ import { getCodeExample } from '../scripts/code-examples.mjs';
 import { prepareRunnableExample } from '../scripts/run-context.mjs';
 import { executePython } from '../site/runners/python.mjs';
 import { boundWasmMemory, outputBuffer, RUN_LIMITS } from '../site/runners/limits.mjs';
+import { assertExpandedOutput } from './expanded-examples.mjs';
 
 const examples = [];
-for (const filename of ['README.md', 'PYTHON-README.md', 'README-zh.md']) {
+for (const filename of ['README.md', 'PYTHON-README.md', 'README-zh.md', 'docs/ml-deep-learning.md']) {
   for (const token of new Marked().lexer(await readFile(new URL(`../${filename}`, import.meta.url), 'utf8'))) {
     if (token.type === 'code') examples.push(getCodeExample(token.text, filename));
   }
@@ -54,21 +55,24 @@ async function createCDriver() {
   };
 }
 
-test('all 186 prepared C examples compile, link and run in the actual WASM toolchain', { timeout: 120_000 }, async t => {
-  const run = await createCDriver();
+test('all 226 prepared C examples compile, link and run in the actual WASM toolchain', { timeout: 120_000 }, async t => {
+  let run;
   const failures = [];
   let passed = 0;
-  for (const example of examples) {
+  for (const [index, example] of examples.entries()) {
+    // The browser creates a fresh sandbox per run. Bound this verification
+    // driver's inode table too, rather than filling one filesystem forever.
+    if (index % 96 === 0) run = await createCDriver();
     const prepared = prepareRunnableExample({ exampleId: example.id, language: 'c', source: example.variants.c });
     assert.equal(prepared.runnable, true, example.id);
     const result = await run(example.id, prepared.source);
     if (example.id === 'py-36') {
       if (result.success || !/assert|unreachable/i.test(result.output + result.error)) failures.push(`${example.id}: expected intentional assertion failure\n${result.output}\n${result.error || ''}`);
     } else if (!result.success) failures.push(`${example.id}: ${result.error}\n${result.output}`);
-    else passed++;
+    else { assertExpandedOutput(example.id, result.output); passed++; }
   }
   t.diagnostic(`${passed} C examples succeeded; py-36 retains its intentional assertion failure.`);
-  assert.equal(examples.length, 186);
+  assert.equal(examples.length, 226);
   assert.deepEqual(failures, []);
 });
 
@@ -92,7 +96,7 @@ test('all runnable Python examples execute in actual bounded WASI CPython', { ti
       intentional++;
       if (!error || !expected.test(output.text)) failures.push(`${example.id}: expected deliberate ${expected}\n${output.text}\n${error?.message || ''}`);
     } else if (error) failures.push(`${example.id}: ${error.message}\n${output.text}`);
-    else passed++;
+    else { assertExpandedOutput(example.id, output.text); passed++; }
   }
   t.diagnostic(`${passed} Python examples succeeded; ${intentional} deliberate errors; ${limitations} explicit NumPy limitations.`);
   assert.equal(passed + intentional + limitations + failures.length, examples.length);

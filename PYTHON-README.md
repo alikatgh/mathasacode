@@ -7,7 +7,7 @@ This is a reference to ease developers into mathematical notation by showing com
 
 Motivation: Academic papers can be intimidating for self-taught graphics programmers and data wranglers :) 
 
-This guide covers common notation, including matrix and tensor products, delta symbols, calculus, and a worked graphics expression. It is an introduction rather than an exhaustive mathematics reference. If you see errors or want to contribute, please [open a ticket](https://github.com/alikatgh/mathasacode/issues) or send a PR.
+This guide covers common notation, including matrix and tensor products, delta symbols, calculus, probability, statistics, and a worked graphics expression. It is an introduction rather than an exhaustive mathematics reference. If you see errors or want to contribute, please [open a ticket](https://github.com/alikatgh/mathasacode/issues) or send a PR.
 
 > **Note**: There will be some discussion of vectorization with [numpy](https://www.numpy.org/). 
 
@@ -66,6 +66,16 @@ For simplicity, many of the code examples here operate on floating point values 
   - [indefinite integrals](#indefinite-integrals)
   - [definite integrals](#definite-integrals)
 - [worked graphics expression](#worked-graphics-expression)
+- [powers and logarithms](#powers-and-logarithms)
+- [trigonometry](#trigonometry)
+- [modular arithmetic](#modular-arithmetic)
+- [factorials and combinations](#factorials-and-combinations)
+- [probability](#probability)
+- [expected value](#expected-value)
+- [variance and standard deviation](#variance-and-standard-deviation)
+- [conditional probability and Bayes](#conditional-probability-and-bayes)
+- [covariance and correlation](#covariance-and-correlation)
+- [entropy](#entropy)
 - [more...](#more)
 
 ## variable name conventions
@@ -1745,6 +1755,282 @@ value. This is a worked reduction of the cited transport model, not a full rende
 Run the standard-library demonstrations from the repository root with
 `python3 examples/notation.py`; their reusable implementations live in
 [`examples/notation.py`](./examples/notation.py).
+
+## powers and logarithms
+
+A power raises a base *b* to an exponent *y*. A logarithm asks which exponent produces *x*. For real logarithms, require `b > 0`, `b ≠ 1` and `x > 0`.
+
+![powers and logarithms 1](https://latex.codecogs.com/svg.latex?b%5Ey%3Dx%5Cquad%5CLongleftrightarrow%5Cquad%5Clog_b%20x%3Dy%2C%5Cqquad%20%5Clog_b%20x%3D%5Cfrac%7B%5Cln%20x%7D%7B%5Cln%20b%7D)
+
+<!-- b^y=x\quad\Longleftrightarrow\quad\log_b x=y,\qquad \log_b x=\frac{\ln x}{\ln b} -->
+
+Here `ln` means the natural logarithm, with base *e*. Compute a power and recover its exponent:
+
+In Python:
+
+```python
+import math
+
+base = 2.0
+exponent = 3.0
+x = 8.0
+power = base ** exponent
+logarithm = math.log(x) / math.log(base)
+print(f"power = {power:.6f}")
+print(f"logarithm = {logarithm:.6f}")
+```
+
+The output is `power = 8.000000` and `logarithm = 3.000000`, because 2³ = 8. `log` functions do not all use the same base; the change-of-base formula makes the base explicit. Zero and negative inputs have no real logarithm.
+
+## trigonometry
+
+For an acute angle *θ* in a right triangle, sine and cosine are ratios of side lengths. On the unit circle they are the vertical and horizontal coordinates, which extends them to any real angle.
+
+![trigonometry 1](https://latex.codecogs.com/svg.latex?%5Csin%5Ctheta%3D%5Cfrac%7B%5Ctext%7Bopposite%7D%7D%7B%5Ctext%7Bhypotenuse%7D%7D%2C%5Cqquad%20%5Ccos%5Ctheta%3D%5Cfrac%7B%5Ctext%7Badjacent%7D%7D%7B%5Ctext%7Bhypotenuse%7D%7D)
+
+<!-- \sin\theta=\frac{\text{opposite}}{\text{hypotenuse}},\qquad \cos\theta=\frac{\text{adjacent}}{\text{hypotenuse}} -->
+
+![trigonometry 2](https://latex.codecogs.com/svg.latex?%5Ctheta_%7B%5Cmathrm%7Brad%7D%7D%3D%5Ctheta_%7B%5Cmathrm%7Bdeg%7D%7D%5Cfrac%7B%5Cpi%7D%7B180%7D)
+
+<!-- \theta_{\mathrm{rad}}=\theta_{\mathrm{deg}}\frac{\pi}{180} -->
+
+Convert 30 degrees to radians before calling the trigonometric functions:
+
+In Python:
+
+```python
+import math
+
+degrees = 30.0
+radians = degrees * math.pi / 180.0
+print(f"sine = {math.sin(radians):.6f}")
+print(f"cosine = {math.cos(radians):.6f}")
+```
+
+The output is `sine = 0.500000` and `cosine = 0.866025`. These standard-library functions take radians, so passing `30` directly would mean 30 radians, not 30 degrees. Floating-point results approximate the exact values 1/2 and √3/2.
+
+## modular arithmetic
+
+For an integer *a* and a positive integer modulus *m*, the normalized remainder *r* is the unique integer from 0 through `m − 1` left after subtracting an integer multiple of *m*. Congruence `≡` means the numbers differ by a multiple of *m*.
+
+![modular arithmetic 1](https://latex.codecogs.com/svg.latex?a%3Dqm%2Br%2C%5Cquad%20q%5Cin%5Cmathbb%20Z%2C%5Cquad%200%5Cle%20r%3Cm%2C%5Cqquad%20a%5Cequiv%20r%5Cpmod%20m)
+
+<!-- a=qm+r,\quad q\in\mathbb Z,\quad 0\le r<m,\qquad a\equiv r\pmod m -->
+
+Normalize the remainder of a small negative integer:
+
+In Python:
+
+```python
+a = -8
+modulus = 5
+remainder = ((a % modulus) + modulus) % modulus
+print(f"remainder = {remainder}")
+```
+
+The output is `remainder = 2`, since −8 = (−2) × 5 + 2. `%` can return a negative remainder in JavaScript, C and Rust; Python already gives a nonnegative remainder for a positive modulus. The normalization works for these fixed small integers in every version. A zero modulus is invalid.
+
+## factorials and combinations
+
+For a nonnegative integer *n*, `n!` is the product of the integers 1 through *n*, with the empty product `0! = 1`. The binomial coefficient `C(n, k)` or `n choose k` counts ways to select *k* distinct objects from *n* without regard to order; require integer `0 ≤ k ≤ n`.
+
+![factorials and combinations 1](https://latex.codecogs.com/svg.latex?n%21%3D%5Cprod_%7Bi%3D1%7D%5E%7Bn%7Di%2C%5Cqquad%200%21%3D1)
+
+<!-- n!=\prod_{i=1}^{n}i,\qquad 0!=1 -->
+
+![factorials and combinations 2](https://latex.codecogs.com/svg.latex?%5Cbinom%20nk%3D%5Cfrac%7Bn%21%7D%7Bk%21%28n-k%29%21%7D)
+
+<!-- \binom nk=\frac{n!}{k!(n-k)!} -->
+
+Build the factorials needed to choose two objects from five:
+
+In Python:
+
+```python
+n = 5
+k = 2
+factorials = [1]
+for i in range(1, n + 1):
+    factorials.append(factorials[i - 1] * i)
+combinations = factorials[n] // (factorials[k] * factorials[n - k])
+print(f"n_factorial = {factorials[n]}")
+print(f"zero_factorial = {factorials[0]}")
+print(f"combinations = {combinations}")
+```
+
+The output is `n_factorial = 120`, `zero_factorial = 1` and `combinations = 10`. Selecting A then B is the same combination as selecting B then A; counting orders would give 20 instead. The examples fix `n = 5`; factorials grow quickly and can overflow fixed-width integers or lose precision in JavaScript.
+
+## probability
+
+A finite sample space *Ω* lists all possible outcomes. An event *A* is a subset of those outcomes. Each outcome has a nonnegative probability *pᵢ*, and all outcome probabilities sum to 1. If every outcome is equally likely, the probability of *A* is a count ratio; `|A|` denotes the number of elements in *A*.
+
+![probability 1](https://latex.codecogs.com/svg.latex?P%28A%29%3D%5Csum_%7Bi%5Cin%20A%7Dp_i%2C%5Cqquad%20P%28A%29%3D%5Cfrac%7B%7CA%7C%7D%7B%7C%5COmega%7C%7D%5C%20%5Ctext%7Bfor%20equally%20likely%20outcomes%7D)
+
+<!-- P(A)=\sum_{i\in A}p_i,\qquad P(A)=\frac{|A|}{|\Omega|}\ \text{for equally likely outcomes} -->
+
+For a fair six-sided die, count the even outcomes:
+
+In Python:
+
+```python
+outcomes = [1, 2, 3, 4, 5, 6]
+favorable = 0
+for outcome in outcomes:
+    if outcome % 2 == 0:
+        favorable += 1
+probability = favorable / len(outcomes)
+print(f"probability = {probability:.6f}")
+```
+
+The output is `probability = 0.500000`, because the three even outcomes have probability 3/6. Counting outcomes assumes they are equally likely and that the sample space is nonempty. For a loaded die, add the assigned probabilities of 2, 4 and 6 instead.
+
+## expected value
+
+A discrete random variable *X* assigns a number *xᵢ* to each possible outcome. Its expected value `E[X]` is the probability-weighted mean. Here the list is finite, each *pᵢ* is nonnegative, and the probabilities sum to 1.
+
+![expected value 1](https://latex.codecogs.com/svg.latex?%5Coperatorname%7BE%7D%5BX%5D%3D%5Csum_%7Bi%3D1%7D%5E%7Bn%7Dx_i%20p_i%2C%5Cqquad%20p_i%3DP%28X%3Dx_i%29)
+
+<!-- \operatorname{E}[X]=\sum_{i=1}^{n}x_i p_i,\qquad p_i=P(X=x_i) -->
+
+Suppose a reward is 0 with probability 0.75 and 10 with probability 0.25:
+
+In Python:
+
+```python
+values = [0.0, 10.0]
+probabilities = [0.75, 0.25]
+expected = 0.0
+for i in range(len(values)):
+    expected += values[i] * probabilities[i]
+print(f"expected = {expected:.6f}")
+```
+
+The output is `expected = 2.500000`, from 0 × 0.75 + 10 × 0.25. An expectation need not be an outcome: no single reward here is 2.5. It describes the long-run average under repeated independent draws with the same probabilities, rather than a guaranteed reward.
+
+## variance and standard deviation
+
+Variance measures spread around the mean *μ* by averaging squared deviations. For a nonempty finite population of *n* equally weighted values, write the population variance as `σ²` and its square root, the standard deviation, as `σ`.
+
+![variance and standard deviation 1](https://latex.codecogs.com/svg.latex?%5Cmu%3D%5Cfrac1n%5Csum_%7Bi%3D1%7D%5En%20x_i%2C%5Cqquad%20%5Csigma%5E2%3D%5Cfrac1n%5Csum_%7Bi%3D1%7D%5En%28x_i-%5Cmu%29%5E2%2C%5Cqquad%20%5Csigma%3D%5Csqrt%7B%5Csigma%5E2%7D)
+
+<!-- \mu=\frac1n\sum_{i=1}^n x_i,\qquad \sigma^2=\frac1n\sum_{i=1}^n(x_i-\mu)^2,\qquad \sigma=\sqrt{\sigma^2} -->
+
+Treat all four values as the complete population:
+
+In Python:
+
+```python
+import math
+
+values = [2.0, 4.0, 6.0, 8.0]
+mean = sum(values) / len(values)
+squared_deviations = 0.0
+for value in values:
+    squared_deviations += (value - mean) ** 2
+variance = squared_deviations / len(values)
+standard_deviation = math.sqrt(variance)
+print(f"variance = {variance:.6f}")
+print(f"standard_deviation = {standard_deviation:.6f}")
+```
+
+The mean is 5, and the squared deviations sum to 20. The output is `variance = 5.000000` and `standard_deviation = 2.236068`. Variance has squared units; standard deviation has the original units. To estimate a population variance from an independent identically distributed sample, the usual unbiased sample variance divides by `n − 1` instead and requires `n > 1`.
+
+## conditional probability and Bayes
+
+Conditional probability `P(A | B)` means the probability of event *A* after restricting attention to event *B*. The intersection `A ∩ B` means both events occur, and conditioning requires `P(B) > 0`.
+
+![conditional probability and Bayes 1](https://latex.codecogs.com/svg.latex?P%28A%5Cmid%20B%29%3D%5Cfrac%7BP%28A%5Ccap%20B%29%7D%7BP%28B%29%7D)
+
+<!-- P(A\mid B)=\frac{P(A\cap B)}{P(B)} -->
+
+![conditional probability and Bayes 2](https://latex.codecogs.com/svg.latex?P%28A%5Cmid%20B%29%3D%5Cfrac%7BP%28B%5Cmid%20A%29P%28A%29%7D%7BP%28B%5Cmid%20A%29P%28A%29%2BP%28B%5Cmid%5Cneg%20A%29P%28%5Cneg%20A%29%7D)
+
+<!-- P(A\mid B)=\frac{P(B\mid A)P(A)}{P(B\mid A)P(A)+P(B\mid\neg A)P(\neg A)} -->
+
+Bayes’ theorem reverses the conditioning. In a fictional detector model, *A* means a target is present and *B* means the detector signals. Use a prior target probability of 0.01, a true-positive probability of 0.90, and a false-positive probability of 0.05:
+
+In Python:
+
+```python
+prior = 0.01
+true_positive = 0.90
+false_positive = 0.05
+joint = true_positive * prior
+evidence = joint + false_positive * (1.0 - prior)
+posterior = joint / evidence
+print(f"evidence = {evidence:.6f}")
+print(f"posterior = {posterior:.6f}")
+```
+
+The output is `evidence = 0.058500` and `posterior = 0.153846`: about 15.38% of signals indicate a target in this model. The denominator includes both true and false signals. `P(B | A) = 0.90` is not `P(A | B)`; the prior base rate matters. If no signal can occur, the denominator is zero and this conditional probability is undefined.
+
+## covariance and correlation
+
+For *n* paired observations `(xᵢ, yᵢ)`, population covariance averages the product of their deviations from means *μₓ* and *μᵧ*. A positive value indicates that above-mean values tend to occur together; a negative value indicates the opposite. Both lists must be nonempty and have the same length.
+
+![covariance and correlation 1](https://latex.codecogs.com/svg.latex?%5Coperatorname%7BCov%7D%28X%2CY%29%3D%5Cfrac1n%5Csum_%7Bi%3D1%7D%5En%28x_i-%5Cmu_x%29%28y_i-%5Cmu_y%29)
+
+<!-- \operatorname{Cov}(X,Y)=\frac1n\sum_{i=1}^n(x_i-\mu_x)(y_i-\mu_y) -->
+
+![covariance and correlation 2](https://latex.codecogs.com/svg.latex?%5Crho%3D%5Cfrac%7B%5Coperatorname%7BCov%7D%28X%2CY%29%7D%7B%5Csigma_x%5Csigma_y%7D%2C%5Cqquad%20%5Csigma_x%3E0%2C%5C%20%5Csigma_y%3E0)
+
+<!-- \rho=\frac{\operatorname{Cov}(X,Y)}{\sigma_x\sigma_y},\qquad \sigma_x>0,\ \sigma_y>0 -->
+
+Pearson correlation *ρ* divides by the two population standard deviations, giving a unitless measure of linear association from −1 to 1. Compute both for three paired values:
+
+In Python:
+
+```python
+import math
+
+x = [1.0, 2.0, 3.0]
+y = [2.0, 4.0, 5.0]
+count = len(x)
+mean_x = sum(x) / count
+mean_y = sum(y) / count
+cross = 0.0
+squares_x = 0.0
+squares_y = 0.0
+for i in range(count):
+    dx = x[i] - mean_x
+    dy = y[i] - mean_y
+    cross += dx * dy
+    squares_x += dx * dx
+    squares_y += dy * dy
+covariance = cross / count
+variance_x = squares_x / count
+variance_y = squares_y / count
+correlation = covariance / math.sqrt(variance_x * variance_y)
+print(f"covariance = {covariance:.6f}")
+print(f"correlation = {correlation:.6f}")
+```
+
+The output is `covariance = 1.000000` and `correlation = 0.981981`. These paired values have strong positive linear association, which does not establish causation. A constant list has zero standard deviation, so its correlation is undefined. This is population covariance; the usual sample covariance uses `n − 1` consistently with sample variances.
+
+## entropy
+
+For a finite discrete distribution, Shannon entropy measures average information per outcome. Each *pᵢ* is an outcome probability, the probabilities are nonnegative and sum to 1, and the logarithm base determines the unit.
+
+![entropy 1](https://latex.codecogs.com/svg.latex?H_2%3D-%5Csum_%7Bi%3D1%7D%5En%20p_i%5Clog_2%20p_i%2C%5Cqquad%200%5Clog_2%200%3A%3D0)
+
+<!-- H_2=-\sum_{i=1}^n p_i\log_2 p_i,\qquad 0\log_2 0:=0 -->
+
+Base 2 gives entropy in bits. Skip zero-probability terms before evaluating the logarithm:
+
+In Python:
+
+```python
+import math
+
+probabilities = [0.5, 0.25, 0.25, 0.0]
+entropy_bits = 0.0
+for probability in probabilities:
+    if probability > 0.0:
+        entropy_bits -= probability * math.log2(probability)
+print(f"entropy_bits = {entropy_bits:.6f}")
+```
+
+The output is `entropy_bits = 1.500000`, from 0.5 × 1 + 0.25 × 2 + 0.25 × 2. The convention `0 log 0 = 0` is a limit; directly evaluating the logarithm at zero can produce a non-finite result. Natural logarithms would give entropy in nats instead of bits.
 
 ## more...
 

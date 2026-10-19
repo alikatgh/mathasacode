@@ -1,5 +1,5 @@
 import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, posix } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Marked } from 'marked';
 import GithubSlugger from 'github-slugger';
@@ -26,6 +26,7 @@ export const documents = [
   { source: 'README.md', output: 'index.html', title: 'math-as-code', lang: 'en', guide: true },
   { source: 'PYTHON-README.md', output: 'PYTHON-README.html', title: 'math-as-code · Python', lang: 'en', guide: true },
   { source: 'README-zh.md', output: 'README-zh.html', title: 'math-as-code · 中文版', lang: 'zh', guide: true },
+  { source: 'docs/ml-deep-learning.md', output: 'machine-learning.html', title: 'ML & deep learning · Math as Code', lang: 'en', guide: true, description: 'Read a neural network training formula, unpack every symbol, and train a tiny network with runnable code.' },
   { source: 'CONTRIBUTING.md', output: 'CONTRIBUTING.html', title: 'Contributing · math-as-code', lang: 'en' },
   { source: 'LICENSE.md', output: 'LICENSE.html', title: 'License · math-as-code', lang: 'en' },
   { source: 'docs/run-locally.md', output: 'run-locally.html', title: 'Run locally · math-as-code', lang: 'en' },
@@ -46,14 +47,16 @@ const decodeEntities = text => text.replace(/&(?:amp|lt|gt|quot|apos|space|plus|
   return value <= 0x10ffff ? String.fromCodePoint(value) : '\ufffd';
 });
 
-export function localHref(href) {
+export function localHref(href, source = 'README.md') {
   href = href.trim().replace(/[\u0000-\u001f\u007f]/g, '');
   const [path, hash] = href.split('#');
   const filename = path.replace(/^\.\//, '');
-  const document = documents.find(page => page.source === filename);
+  const relative = !/^(?:[a-z][a-z\d+.-]*:|\/)/i.test(path)
+    ? posix.normalize(posix.join(posix.dirname(source), filename)) : filename;
+  const document = documents.find(page => page.source === relative) || documents.find(page => page.source === filename);
   if (document) return `/${document.output}${hash ? `#${hash}` : ''}`;
   if (/^https?:\/\/github\.com\/(?:Jam3|Experience-Monks)\/math-as-code\/blob\/master\/LICENSE\.md$/i.test(path)) return '/LICENSE.html';
-  if (filename === 'examples/notation.cjs' || filename === 'examples/notation.py') return `/${filename}${hash ? `#${hash}` : ''}`;
+  if (relative === 'examples/notation.cjs' || relative === 'examples/notation.py') return `/${relative}${hash ? `#${hash}` : ''}`;
   if (/^(?:https?:|mailto:|#|\/)/i.test(href)) return href;
   if (/^[a-z][a-z\d+.-]*:/i.test(href)) return '#';
   return href;
@@ -105,7 +108,7 @@ export function renderDocument(markdown, document = documents[0], { comparisons 
       return `<h${depth} id="${escape(id)}">${content}</h${depth}>\n`;
     },
     link({ href, title, tokens }) {
-      const target = localHref(decodeEntities(href));
+      const target = localHref(decodeEntities(href), document.source);
       return `<a href="${escape(target)}"${title ? ` title="${escape(title)}"` : ''}>${this.parser.parseInline(tokens)}</a>`;
     },
     image({ href, text }) {

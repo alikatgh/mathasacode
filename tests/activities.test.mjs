@@ -10,8 +10,8 @@ const find = id => { const activity = activities.find(item => item.id === id); a
 const calculate = (id, values = {}) => { const activity = find(id); return activity.calculate({ ...defaults(activity), ...values }); };
 
 test('every core topic has an activity on all three guides and each quiz has a valid localized answer', async () => {
-  assert.equal(activities.length, 25);
-  assert.equal(new Set(activities.map(activity => activity.id)).size, 25);
+  assert.equal(activities.length, 39);
+  assert.equal(new Set(activities.map(activity => activity.id)).size, 39);
   for (const activity of activities) {
     assert.equal(new Set(activity.fields.map(field => field.key)).size, activity.fields.length);
     for (const lang of ['en', 'zh']) {
@@ -24,9 +24,15 @@ test('every core topic has an activity on all three guides and each quiz has a v
     const { headings } = renderDocument(await readFile(join(projectRoot, document.source), 'utf8'), document);
     const ids = new Set(headings.map(heading => heading.id));
     const matched = activities.filter(activity => activity.headingIds[document.lang].some(id => ids.has(id)));
-    assert.equal(matched.length, document.source === 'PYTHON-README.md' ? 25 : 24, document.source);
-    for (const activity of activities.filter(activity => activity.id !== 'set-builder')) assert.ok(matched.includes(activity), `${document.source}: ${activity.id}`);
+    assert.equal(matched.length, document.source === 'PYTHON-README.md' ? 35 : 34, document.source);
+    for (const activity of activities.filter(activity => activity.id !== 'set-builder' && !activity.id.startsWith('ml-'))) assert.ok(matched.includes(activity), `${document.source}: ${activity.id}`);
   }
+  const machineLearning = documents.find(document => document.source === 'docs/ml-deep-learning.md');
+  const { headings } = renderDocument(await readFile(join(projectRoot, machineLearning.source), 'utf8'), machineLearning);
+  const ids = new Set(headings.map(heading => heading.id));
+  const mlActivities = activities.filter(activity => activity.id.startsWith('ml-'));
+  assert.equal(mlActivities.length, 4);
+  for (const activity of mlActivities) assert.ok(activity.headingIds.en.some(id => ids.has(id)), activity.id);
 });
 
 test('defaults and every selectable operation produce finite readable output', () => {

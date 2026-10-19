@@ -9,7 +9,7 @@ const formula = '![sum](https://latex.codecogs.com/svg.latex?%5Csum_%7Bi%3D1%7D%
 const flatten = tokens => tokens.flatMap(token => token.type === 'comparison' ? [...flatten(token.notation), ...flatten(token.implementation)] : [token]);
 
 test('pairing preserves every authored token and heading in all guide versions', async () => {
-  for (const document of documents.slice(0, 3)) {
+  for (const document of documents.filter(document => document.guide)) {
     const source = await readFile(new URL(`../${document.source}`, import.meta.url), 'utf8');
     const tokens = new Marked().lexer(source);
     const paired = pairComparisons(tokens);
@@ -20,7 +20,7 @@ test('pairing preserves every authored token and heading in all guide versions',
     assert.deepEqual(result.headings, original.headings);
     assert.equal(result.formulaCount, original.formulaCount);
     assert.equal((result.html.match(/<pre>/g) || []).length, (original.html.match(/<pre>/g) || []).length);
-    assert.ok(result.comparisonCount >= 30);
+    assert.ok(result.comparisonCount >= (document.source === 'docs/ml-deep-learning.md' ? 8 : 30));
   }
 });
 
