@@ -1,0 +1,8 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "./shadcn-tailwind.css";
+@import "./reui-theme.css";
+@import "./reui-vega.css" layer(base);
+
+@source "../components";
+@source "../*.jsx";

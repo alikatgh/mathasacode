@@ -1,0 +1,18 @@
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Cache-Control: public, max-age=0, must-revalidate
+
+/
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://play.rust-lang.org; worker-src 'self' blob:; frame-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; frame-ancestors 'none'
+  X-Frame-Options: DENY
+
+/:page
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://play.rust-lang.org; worker-src 'self' blob:; frame-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; frame-ancestors 'none'
+  X-Frame-Options: DENY
+
+/assets/runners/sandbox*
+  Content-Security-Policy: default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval' blob:; worker-src blob:; child-src blob:; connect-src blob:; base-uri 'none'; object-src 'none'; form-action 'none'; frame-ancestors 'self'; sandbox allow-scripts
+  X-Frame-Options: SAMEORIGIN
+  X-Robots-Tag: noindex

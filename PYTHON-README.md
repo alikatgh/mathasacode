@@ -7,7 +7,7 @@ This is a reference to ease developers into mathematical notation by showing com
 
 Motivation: Academic papers can be intimidating for self-taught graphics programmers and data wranglers :) 
 
-This guide is not yet finished. If you see errors or want to contribute, please [open a ticket](https://github.com/Jam3/math-as-code/issues) or send a PR.
+This guide covers common notation, including matrix and tensor products, delta symbols, calculus, and a worked graphics expression. It is an introduction rather than an exhaustive mathematics reference. If you see errors or want to contribute, please [open a ticket](https://github.com/alikatgh/mathasacode/issues) or send a PR.
 
 > **Note**: There will be some discussion of vectorization with [numpy](https://www.numpy.org/). 
 
@@ -33,6 +33,7 @@ For simplicity, many of the code examples here operate on floating point values 
   - [dot product](#dot-product)
   - [cross product](#cross-product)
 - [sigma `Σ`](#sigma) - *summation*
+- [averages](#averages)
 - [capital Pi `Π`](#capital-pi) - *products of sequences*
 - [pipes `||`](#pipes)
   - [absolute value](#absolute-value)
@@ -41,7 +42,7 @@ For simplicity, many of the code examples here operate on floating point values 
 - [hat **`â`**](#hat) - *unit vector*
 - ["element of" `∈` `∉`](#element)
 - [common number sets `ℝ` `ℤ` `ℚ` `ℕ`](#common-number-sets)
-- [function `ƒ`](#function)
+- [function `ƒ`](#functions)
   - [piecewise function](#piecewise-function)
   - [common functions](#common-functions)
   - [function notation `↦` `→`](#function-notation)
@@ -49,10 +50,22 @@ For simplicity, many of the code examples here operate on floating point values 
 - [floor & ceiling `⌊` `⌉`](#floor--ceiling)
 - [arrows](#arrows)
   - [material implication `⇒` `→`](#material-implication)
-  - [equality `<` `≥` `≫`](#equality)
+  - [inequality `<` `≥` `≫`](#inequality)
   - [conjunction & disjunction `∧` `∨`](#conjunction--disjunction)
 - [logical negation `¬` `~` `!`](#logical-negation)
 - [intervals](#intervals)
+- [matrix multiplication](#matrix-multiplication)
+- [tensor product `⊗`](#tensor-product)
+- [delta `Δ` `δ`](#delta)
+  - [finite change](#finite-change)
+  - [Kronecker delta](#kronecker-delta)
+  - [Dirac delta](#dirac-delta)
+- [derivatives](#derivatives)
+- [gradients and gradient descent](#gradients-and-gradient-descent)
+- [integrals `∫`](#integrals)
+  - [indefinite integrals](#indefinite-integrals)
+  - [definite integrals](#definite-integrals)
+- [worked graphics expression](#worked-graphics-expression)
 - [more...](#more)
 
 ## variable name conventions
@@ -96,11 +109,12 @@ In Python:
 
 ## approximately equal
 import math
-math.isclose(math.pi, 3.14159) # math.isclose doesn't have a third argument for tolerance, so this is false
+math.isclose(math.pi, 3.14159) # False with the default tolerances
+math.isclose(math.pi, 3.14159, abs_tol=1e-5) # True; tolerances are keyword-only
 
 from numpy.testing import assert_almost_equal
-assert_almost_equal(math.pi, 3.14159, 1e-5) # we gave it a the tolerance we want, 5 decimal places. 
-# This is actually a unit test, equivalent to "assert isclose(x,y)", read on for more. 
+assert_almost_equal(math.pi, 3.14159, decimal=5) # decimal is a number of decimal places
+# This raises AssertionError when the requested precision is not met.
 
 def almost_equal(x, y, epsilon=7): 
   ''' you can make your own! 
@@ -109,6 +123,8 @@ def almost_equal(x, y, epsilon=7):
   return abs(x - y) < 10 ** -epsilon
 
 ```
+
+The tolerance conventions differ: [`math.isclose`](https://docs.python.org/3/library/math.html#math.isclose) uses relative and absolute error, while [`assert_almost_equal`](https://numpy.org/doc/stable/reference/generated/numpy.testing.assert_almost_equal.html) takes decimal precision. Choose a tolerance for the calculation.
 
 > **Read more**: programmers got this idea from the [epsilon-delta definition of limit][1]
 
@@ -146,6 +162,8 @@ The following, on the other hand, represents equality:
 <!-- x = 2kj -->
 
 **Important**: the difference between `=` and `==` can be more obvious in code than it is in math literature! In python, a `=` is an *instruction*. You're telling the machine to interact with the namespace, add something to it or change something in it. In python, when you write `==` you're asking the machine "may I have a `bool`?". In math, the former case is *either* covered by `:=` or `=`, while the latter case is *usually* `=`, and you might have to do some disambiguating in your reading. 
+
+<!-- comparison:break -->
 
 In math, when I write 1 + 1 = 2 I'm making a *judgment*. It's not that i'm asking the world (or the chalkboard) for a bool, it's that I'm keeping track of my beliefs. This distinction is the foundation of *unit tests* or *assertions*. 
 
@@ -190,17 +208,17 @@ Vanilla python has a `complex` constructor, and a standard module `cmath` for wo
 
 ```python
 complex(1,1)
-# Out: (1+1j)s
+# Out: (1+1j)
 
 math.sqrt(complex(1,1))
-# TypeError: can't convert complex to float
+# TypeError: must be real number, not complex
 
 import cmath
 cmath.sqrt(complex(1,1))
 # Out: (1.09868411346781+0.45508986056222733j)
 
-# you need numpy to get conjugate
-np.conj(complex(0.5,0.5))
+# built-in complex numbers provide a conjugate method
+complex(0.5,0.5).conjugate()
 # Out: (0.5-0.5j)
 
 # we can represent the basic meaning of the imaginary unit like so
@@ -225,15 +243,18 @@ to and from complex.
 
 observe the following [cube roots of unity](https://www.math-only-math.com/the-cube-roots-of-unity.html)
 ```python
-z1 = 0.5 * np.complex(-1, math.sqrt(3)) # Numpy's constructor is basically the same.  
-z2 = np.conj(z1) # but numpy gives us a conjugation function, while the standard module does not. 
+z1 = 0.5 * complex(-1, math.sqrt(3))
+z2 = z1.conjugate() # Built-in complex values do not require NumPy.
 
 assert math.isclose(z1**3, z2**3)
-# TypeError: can't convert complex to float
+# TypeError: must be real number, not complex
 
-np.testing.assert_almost_equal(z1**3, z2**3)
+assert cmath.isclose(z1**3, z2**3) # Complex-aware approximate comparison
+np.testing.assert_almost_equal(z1**3, z2**3) # NumPy also supports complex values
 ```
-[Read on about numpy's complex numbers](https://docs.scipy.org/doc/numpy/user/basics.types.html)
+Python documents [`complex.conjugate`](https://docs.python.org/3/library/stdtypes.html#typesnumeric); NumPy provides [`np.conj`](https://numpy.org/doc/stable/reference/generated/numpy.conj.html) for element-wise conjugation of arrays. Use `complex` rather than the [deprecated `np.complex` alias](https://numpy.org/doc/stable/release/1.20.0-notes.html#using-the-aliases-of-builtin-types-like-np-int-is-deprecated).
+
+[Read on about NumPy's complex numbers](https://numpy.org/doc/stable/user/basics.types.html)
 
 ## dot & cross
 
@@ -287,7 +308,7 @@ k = [1, 2]
 j = [2, 3]
 
 tmp = multiply(k, j)
-result = multiply_scalar(tmp, s)
+result = multiply_scalar(s, tmp)
 # Out: [6, 18]
 ```
 
@@ -295,7 +316,7 @@ Our `multiply` and `multiply_scalar` functions look like this:
 
 ```python
 def multiply(a, b):
-  return [aa * bb for aa,bb in zip(a,b)
+  return [aa * bb for aa,bb in zip(a,b)]
 
 
 def multiply_scalar(scalar, a):
@@ -303,7 +324,7 @@ def multiply_scalar(scalar, a):
 
 ```
 
-Similarly, matrix multiplication typically does not use the dot `·` or cross symbol `×`. 
+Similarly, [matrix multiplication](#matrix-multiplication) typically does not use the dot `·` or cross symbol `×`.
 
 Numpy's broadcasted syntax for scaling looks like this: 
 
@@ -383,7 +404,7 @@ Here, `i=1` says to start at `1` and end at the number above the Sigma, `100`. T
 
 Hence, the big sigma is the `for` keyword. 
 ```python
-sum([k for k in range(100)])
+sum(range(1, 101))
 # Out: 5050
 ```
 
@@ -407,13 +428,13 @@ Here is another example where the *i*, or the "what to sum," is different:
 In code:
 
 ```python
-sum([2*k + 1 for k in range(100)])
-# Out: 10000
+sum(2*k + 1 for k in range(1, 101))
+# Out: 10200
 ```
 
-**important**: `range` in python has an *inclusive lower bound and exclusive
-upper bound*, meaning that `... for k in range(100)` is equivalent to `the sum of
-... for k=0 to k=n`. 
+**Important**: Python's `range(start, stop)` includes `start` and excludes
+`stop`. Thus `range(100)` gives `0` through `99`, while `range(1, 101)` gives
+`1` through `100`, matching the inclusive bounds in both sums above.
 
 If you're still not absolutely fluent in indexing for these applications, spend some time with [Trev Tutor](https://youtu.be/TDpQSa3hJRw) on youtube.
 
@@ -438,6 +459,33 @@ sum(
 # Out: 135
 ```
 
+
+## averages
+
+A sum followed by division by the number of values is their arithmetic mean:
+
+![arithmetic mean](https://latex.codecogs.com/svg.latex?%5Cbar%7Bx%7D%3D%5Cfrac%7B1%7D%7Bn%7D%5Csum_%7Bi%3D1%7D%5E%7Bn%7Dx_i%2C%5Cqquad%20n%3E0)
+
+<!-- \bar{x}=\frac{1}{n}\sum_{i=1}^{n}x_i,\qquad n>0 -->
+
+The [summation](#sigma) adds the values; the factor **1/n** divides that total
+by their count. There must be at least one value: **n > 0**. An empty list has
+no arithmetic mean in this example.
+
+```python
+from examples.notation import mean
+
+values = [2, 4, 6, 8]
+print(mean(values))
+# Out: 5.0
+```
+
+The checked helper accepts 1 through 10,000 finite real values. It scales them
+before summing, so `mean([1e308, 1e308])` remains `1e308` even though their
+unscaled floating-point sum would overflow. It does not change the input.
+
+The same **(1/n) Σ** pattern can average vectors component by component, including
+the [gradients](#gradients-and-gradient-descent) of individual sample losses.
 
 ## capital Pi
 
@@ -473,11 +521,11 @@ the box)
 ```python
 import numpy as np
 
-xs = np.array([2*k + 1 for k in range(100)])
+xs = np.array([2*k + 1 for k in range(1, 101)])
 ys = np.array(range(1,7))
 
 xs.sum()
-# Out: 10000
+# Out: 10200
 
 ys.prod()
 # Out: 720
@@ -650,9 +698,9 @@ But it's actually **faster** on large input, because arrays.
 
 In set theory, the "element of" symbol `∈` and `∋` can be used to describe whether something is an element of a *set*. For example:
 
-![element1](http://latex.codecogs.com/svg.latex?A%3D%5Cleft%20%5C%7B3%2C9%2C14%7D%7B%20%5Cright%20%5C%7D%2C%203%20%5Cin%20A)
+![element1](https://latex.codecogs.com/svg.latex?A%3D%5Cleft%20%5C%7B3%2C9%2C14%20%5Cright%20%5C%7D%2C%203%20%5Cin%20A)
 
-<!-- A=\left \{3,9,14}{  \right \}, 3 \in A -->
+<!-- A=\left \{3,9,14 \right \}, 3 \in A -->
 
 Here we have a set of numbers *A* = `{ 3, 9, 14 }` and we are saying `3` is an "element of" that set. 
 
@@ -678,15 +726,15 @@ set([3,3,3,2,4,3,3,3,1,2,4,5,3])
 
 The backwards `∋` is the same, but the order changes:
 
-![element2](http://latex.codecogs.com/svg.latex?A%3D%5Cleft%20%5C%7B3%2C9%2C14%7D%7B%20%5Cright%20%5C%7D%2C%20A%20%5Cni%203)
+![element2](https://latex.codecogs.com/svg.latex?A%3D%5Cleft%20%5C%7B3%2C9%2C14%20%5Cright%20%5C%7D%2C%20A%20%5Cni%203)
 
-<!-- A=\left \{3,9,14}{  \right \}, A \ni 3 -->
+<!-- A=\left \{3,9,14 \right \}, A \ni 3 -->
 
 You can also use the "not an element of" symbols `∉` and `∌` like so:
 
-![element3](http://latex.codecogs.com/svg.latex?A%3D%5Cleft%20%5C%7B3%2C9%2C14%7D%7B%20%5Cright%20%5C%7D%2C%206%20%5Cnotin%20A)
+![element3](https://latex.codecogs.com/svg.latex?A%3D%5Cleft%20%5C%7B3%2C9%2C14%20%5Cright%20%5C%7D%2C%206%20%5Cnotin%20A)
 
-<!-- A=\left \{3,9,14}{  \right \}, 6 \notin A -->
+<!-- A=\left \{3,9,14 \right \}, 6 \notin A -->
 
 Which you know is represented by the convenient `not` keyword in python. 
 
@@ -1023,7 +1071,7 @@ For example, if we take a 2D point *(x, y)* and rotate it, you might name the re
 
 In code, we typically just assign the variable a more descriptive name, like `transformedPosition`.
 
-For a mathematical [function](#function), the prime symbol often describes the *derivative* of that function. Derivatives will be explained in a future section. Let's take our earlier function:
+For a mathematical [function](#functions), the prime symbol often describes the *derivative* of that function. The [derivatives](#derivatives) section explains the limit behind this notation. Let's take our earlier function:
 
 ![function2](http://latex.codecogs.com/svg.latex?f%5Cleft%20%28x%20%5Cright%20%29%20%3D%20x%5E%7B2%7D)
 
@@ -1039,7 +1087,7 @@ In code:
 
 ```python
 def f(x): 
-  return Math.pow(x, 2)
+  return x ** 2
 
 def f_prime(x):
   return 2 * x
@@ -1094,11 +1142,15 @@ Arrows like `⇒` and `→` are sometimes used in logic for *material implicatio
 Interpreting this as code might look like this:
 
 ```python
-def if_A_then_B:
-  if A:
-    assert B, "alas, not A!"
-    return B
+def if_A_then_B(A, B):
+  return (not A) or B
+
+assert if_A_then_B(True, True)
+assert if_A_then_B(False, False)
+assert not if_A_then_B(True, False)
 ```
+
+For Boolean inputs, the implication is false only when `A` is true and `B` is false. A false premise makes the implication true.
 
 The arrows can go in either direction `⇐` `⇒`, or both `⇔`. When *A ⇒ B* and *B ⇒ A*, they are said to be equivalent:
 
@@ -1147,13 +1199,17 @@ The following shows conjunction `∧`, the logical `AND`.
 In Python, we just say `and`. Assuming *k* is a natural number, the logic implies that *k* is 3:
 
 ```python
-lambda k: if (k > 2 and k < 4): assert k == 3, "Exercise: can this error ever be raised?"
+def check_between(k):
+  if k > 2 and k < 4:
+    assert k == 3, "Exercise: can this fail when k is an integer?"
 ```
 
 Since both sides are equivalent `⇔`, it also implies the following:
 
 ```python
-lambda k: if (k == 3): assert (k > 2 and k < 4), "I mean it, think through this exercise."
+def check_three(k):
+  if k == 3:
+    assert k > 2 and k < 4, "I mean it, think through this exercise."
 ```
 
 The down arrow `∨` is logical disjunction, like the OR operator.
@@ -1178,10 +1234,12 @@ Here is a simple example using the *not* symbol:
 An example of how we might interpret this in code:
 
 ```python
-lambda x, y: if (x != y): assert not x == y, "arrr, buried treasure lost forever. "
+def check_not_equal(x, y):
+  if x != y:
+    assert not (x == y), "arrr, buried treasure lost forever."
 ```
 
-*Note:* The tilde `~` has many different meanings depending on context. For example, *row equivalence* (matrix theory) or *same order of magnitude* (discussed in [equality](#equality)).
+*Note:* The tilde `~` has many different meanings depending on context. For example, *row equivalence* (matrix theory) or *same order of magnitude* (discussed in [inequality](#inequality)).
 
 ## intervals
 
@@ -1272,9 +1330,425 @@ You should definitely run these in repl and try to wrap your head around them.
 
 
 
+## matrix multiplication
+
+A matrix is a rectangular table: an **m × n** matrix has *m rows* and *n columns*.
+For a product **AB**, the number of columns in **A** must equal the number of
+rows in **B**. An **m × n** matrix times an **n × p** matrix gives an **m × p**
+matrix. Each output entry is a row–column [dot product](#dot-product):
+
+![matrix product entries](https://latex.codecogs.com/svg.latex?C%3DAB%2C%5Cqquad%20C_%7Bij%7D%3D%5Csum_%7Bk%3D1%7D%5E%7Bn%7DA_%7Bik%7DB_%7Bkj%7D)
+
+<!-- C=AB,\qquad C_{ij}=\sum_{k=1}^{n}A_{ik}B_{kj} -->
+
+Here, the sum runs over the shared dimension. With zero-based Python indices:
+
+```python
+A = [[1, 2], [3, 4]]
+B = [[5, 6], [7, 8]]
+
+C = [
+    [sum(A[i][k] * B[k][j] for k in range(len(B)))
+     for j in range(len(B[0]))]
+    for i in range(len(A))
+]
+print(C)
+# Out: [[19, 22], [43, 50]]
+```
+
+For example, the top-left entry is `1*5 + 2*7 = 19`.
+This differs from element-wise (Hadamard) multiplication, which would give
+`[[5, 12], [21, 32]]`. Order also matters: **BA** is
+`[[23, 34], [31, 46]]`, so in general **AB ≠ BA**.
+
+The loop above assumes valid dimensions. The reusable
+[`multiply_matrices`](./examples/notation.py) checks nonempty, rectangular,
+compatible matrices and finite real entries:
+
+```python
+from examples.notation import multiply_matrices
+
+print(multiply_matrices(A, B))
+# Out: [[19.0, 22.0], [43.0, 50.0]]
+```
+
+Python's `@` operator denotes matrix multiplication for types that implement it,
+such as NumPy arrays; built-in nested lists do not implement `@`.
+See NumPy's [matrix multiplication documentation](https://numpy.org/doc/stable/reference/generated/numpy.matmul.html)
+for its array semantics. The examples added here use only the Python standard library.
+
+## tensor product
+
+The symbol **⊗** denotes a *tensor product*. Its coordinates keep pairs of
+indices rather than summing them away. For two real vectors, these coordinates
+form an *outer product*:
+
+![vector outer product](https://latex.codecogs.com/svg.latex?T_%7Bij%7D%3Du_i%20v_j)
+
+<!-- T_{ij}=u_i v_j -->
+
+```python
+u = [1, 2]
+v = [3, 4, 5]
+outer = [[a * b for b in v] for a in u]
+print(outer)
+# Out: [[3, 4, 5], [6, 8, 10]]
+```
+
+For matrices viewed as linear maps, chosen bases represent their tensor product
+as a **Kronecker product**: replace every entry of **A** with that scalar times
+all of **B**.
+
+![Kronecker blocks](https://latex.codecogs.com/svg.latex?A%5Cotimes%20B%3D%5Cbegin%7Bbmatrix%7Da_%7B11%7DB%26a_%7B12%7DB%5C%5Ca_%7B21%7DB%26a_%7B22%7DB%5Cend%7Bbmatrix%7D)
+
+<!-- A\otimes B=\begin{bmatrix}a_{11}B&a_{12}B\\a_{21}B&a_{22}B\end{bmatrix} -->
+
+If **A** is **m × n** and **B** is **p × q**, this block matrix is
+**mp × nq**. In zero-based indices, its entry at `(i*p + k, j*q + l)` is
+`A[i][j] * B[k][l]`. One could instead retain the four indices as a four-dimensional
+array; the Kronecker layout groups the output and input indices into two axes.
+
+```python
+from examples.notation import kronecker_product
+
+A = [[1, 2], [3, 4]]
+B = [[0, 5], [6, 7]]
+print(kronecker_product(A, B))
+# Out: [[0.0, 5.0, 0.0, 10.0],
+#       [6.0, 7.0, 12.0, 14.0],
+#       [0.0, 15.0, 0.0, 20.0],
+#       [18.0, 21.0, 24.0, 28.0]]
+```
+
+There is no shared-dimension requirement for this operation. It differs from
+Hadamard multiplication, which pairs matching positions, and matrix
+multiplication, which contracts a shared index by summing it. See the primary
+NumPy references for [outer products](https://numpy.org/doc/stable/reference/generated/numpy.outer.html)
+and [Kronecker products](https://numpy.org/doc/stable/reference/generated/numpy.kron.html).
+
+## delta
+
+### finite change
+
+Uppercase **Δ** often denotes a finite change, with the author's convention
+determining which values are subtracted:
+
+![finite change](https://latex.codecogs.com/svg.latex?%5CDelta%20x%3Dx_1-x_0%2C%5Cqquad%5CDelta%20f%3Df%28x_1%29-f%28x_0%29)
+
+<!-- \Delta x=x_1-x_0,\qquad\Delta f=f(x_1)-f(x_0) -->
+
+```python
+x_before = 2
+x_after = 5
+f = lambda x: x * x
+
+delta_x = x_after - x_before          # 3
+delta_f = f(x_after) - f(x_before)   # 21
+average_slope = delta_f / delta_x    # 7.0; requires delta_x != 0
+```
+
+An average slope over an interval differs from the instantaneous
+[derivative](#derivatives) at a point. Lowercase **δ** has other meanings; read
+its definition in context.
+
+### Kronecker delta
+
+With discrete integer indices, **δᵢⱼ** often means the *Kronecker delta*:
+
+![Kronecker delta](https://latex.codecogs.com/svg.latex?%5Cdelta_%7Bij%7D%3D%5Cbegin%7Bcases%7D1%26i%3Dj%5C%5C0%26i%5Cne%20j%5Cend%7Bcases%7D)
+
+<!-- \delta_{ij}=\begin{cases}1&i=j\\0&i\ne j\end{cases} -->
+
+```python
+from examples.notation import kronecker_delta
+
+print(kronecker_delta(2, 2), kronecker_delta(2, 3))
+# Out: 1 0
+
+identity = [[kronecker_delta(i, j) for j in range(3)] for i in range(3)]
+# [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+```
+
+It selects matching indices in a sum. For `values = [4, 8, 15]`,
+`sum(kronecker_delta(i, 1) * values[i] for i in range(3))` is `8`.
+
+### Dirac delta
+
+The *Dirac delta* **δ(x − a)** is a **distribution**, specified by its action
+under integration. For a smooth, compactly supported test function *f*:
+
+![Dirac delta sampling property](https://latex.codecogs.com/svg.latex?%5Cint_%7B-%5Cinfty%7D%5E%7B%5Cinfty%7D%20f%28x%29%5C%2C%5Cdelta%28x-a%29%5C%2Cdx%3Df%28a%29)
+
+<!-- \int_{-\infty}^{\infty} f(x)\,\delta(x-a)\,dx=f(a) -->
+
+This notation selects a function's value at *a*. It does not describe an
+ordinary function returning `1` when `x == a` and `0` otherwise: such a function
+has zero integral over the real line and cannot provide this property.
+There is no pointwise `dirac_delta(x)` implementation in these examples.
+See [NIST DLMF, Dirac Delta Distribution](https://dlmf.nist.gov/1.16#iii)
+for the mathematical definition.
+
+## derivatives
+
+A derivative measures local change. The notations **f′(x)**, **df/dx**, and
+**d/dx f(x)** describe the same derivative of a single-variable function:
+
+![derivative definition](https://latex.codecogs.com/svg.latex?f%27%28x%29%3D%5Clim_%7Bh%5Cto0%7D%5Cfrac%7Bf%28x%2Bh%29-f%28x%29%7D%7Bh%7D)
+
+<!-- f'(x)=\lim_{h\to0}\frac{f(x+h)-f(x)}{h} -->
+
+The limit must exist; substituting `h = 0` would divide by zero. For
+`f(x) = x*x`, expanding the numerator for nonzero *h* gives:
+
+![derivative of a square](https://latex.codecogs.com/svg.latex?%5Cfrac%7B%28x%2Bh%29%5E2-x%5E2%7D%7Bh%7D%3D2x%2Bh%5C%3B%5Clongrightarrow%5C%3B2x)
+
+<!-- \frac{(x+h)^2-x^2}{h}=2x+h\;\longrightarrow\;2x -->
+
+Thus **f′(x) = 2x**, exactly. A program can evaluate this known derivative as
+`lambda x: 2*x`. For a function supplied as a callable, a centered finite
+difference instead approximates the derivative:
+
+![centered finite difference](https://latex.codecogs.com/svg.latex?f%27%28x%29%5Capprox%5Cfrac%7Bf%28x%2Bh%29-f%28x-h%29%7D%7B2h%7D)
+
+<!-- f'(x)\approx\frac{f(x+h)-f(x-h)}{2h} -->
+
+```python
+from examples.notation import derivative
+
+estimate = derivative(lambda x: x * x, 3, h=1e-5)
+print(round(estimate, 6))
+# Out: 6.0
+```
+
+The implementation makes two function calls and checks finite values and a
+positive, representable step. For sufficiently smooth functions, the truncation
+error of this centered formula decreases quadratically with *h* in exact
+arithmetic. Floating-point rounding and cancellation eventually dominate as *h*
+shrinks. Samples must also stay inside the function's domain.
+
+A finite difference does not prove differentiability: this same formula returns
+`0.0` for `abs` at `0`, where the left and right slopes disagree and the derivative
+does not exist. See [OpenStax, Defining the Derivative](https://openstax.org/books/calculus-volume-1/pages/3-1-defining-the-derivative).
+
+## gradients and gradient descent
+
+The [derivative](#derivatives) describes change with one input. For a
+differentiable scalar function of a weight vector **w**, the **gradient** **∇Q**
+is a vector of partial derivatives. Each partial varies one weight while holding
+the other coordinates fixed:
+
+![gradient](https://latex.codecogs.com/svg.latex?%5Cnabla%20Q%28%5Cmathbf%20w%29%3D%5Cbegin%7Bbmatrix%7D%5Cfrac%7B%5Cpartial%20Q%7D%7B%5Cpartial%20w_1%7D%5C%5C%5Cvdots%5C%5C%5Cfrac%7B%5Cpartial%20Q%7D%7B%5Cpartial%20w_d%7D%5Cend%7Bbmatrix%7D)
+
+<!-- \nabla Q(\mathbf w)=\begin{bmatrix}\frac{\partial Q}{\partial w_1}\\\vdots\\\frac{\partial Q}{\partial w_d}\end{bmatrix} -->
+
+Suppose the objective is a finite mean of differentiable per-sample losses:
+
+![objective](https://latex.codecogs.com/svg.latex?Q%28%5Cmathbf%20w%29%3D%5Cfrac%7B1%7D%7Bn%7D%5Csum_%7Bi%3D1%7D%5E%7Bn%7DQ_i%28%5Cmathbf%20w%29%2C%5Cqquad%20n%3E0)
+
+<!-- Q(\mathbf w)=\frac{1}{n}\sum_{i=1}^{n}Q_i(\mathbf w),\qquad n>0 -->
+
+Differentiating this finite sum gives the mean of the sample gradients. As a
+concrete example, use linear prediction **w · xᵢ** and half the squared error:
+
+![sample loss](https://latex.codecogs.com/svg.latex?%5Cbegin%7Baligned%7DQ_i%28%5Cmathbf%20w%29%26%3D%5Cfrac12%28%5Cmathbf%20w%5Ccdot%5Cmathbf%20x_i-y_i%29%5E2%5C%5C%5Cnabla%20Q_i%28%5Cmathbf%20w%29%26%3D%28%5Cmathbf%20w%5Ccdot%5Cmathbf%20x_i-y_i%29%5Cmathbf%20x_i%5Cend%7Baligned%7D)
+
+<!-- \begin{aligned}Q_i(\mathbf w)&=\frac12(\mathbf w\cdot\mathbf x_i-y_i)^2\\\nabla Q_i(\mathbf w)&=(\mathbf w\cdot\mathbf x_i-y_i)\mathbf x_i\end{aligned} -->
+
+Here **xᵢ** contains the features, **yᵢ** is the target, and the residual is
+`prediction - target`. There is no separate intercept in this example; a constant
+feature could represent one. The sample gradient is the residual times each
+feature, with the same number of components as **w**.
+
+Gradient descent uses a positive learning rate **η** to take one step opposite
+the mean gradient. An in-place update is often written `w := w − η∇Q(w)`;
+using a separate next value makes its dependence on the old vector explicit:
+
+![update](https://latex.codecogs.com/svg.latex?%5Cbegin%7Baligned%7D%5Cmathbf%20w_%7B%5Cmathrm%7Bnext%7D%7D%26%3D%5Cmathbf%20w-%5Ceta%5Cnabla%20Q%28%5Cmathbf%20w%29%5C%5C%26%3D%5Cmathbf%20w-%5Cfrac%7B%5Ceta%7D%7Bn%7D%5Csum_%7Bi%3D1%7D%5E%7Bn%7D%5Cnabla%20Q_i%28%5Cmathbf%20w%29%5Cend%7Baligned%7D)
+
+<!-- \begin{aligned}\mathbf w_{\mathrm{next}}&=\mathbf w-\eta\nabla Q(\mathbf w)\\&=\mathbf w-\frac{\eta}{n}\sum_{i=1}^{n}\nabla Q_i(\mathbf w)\end{aligned} -->
+
+```python
+from examples.notation import gradient_descent_step
+
+weights = [0, 0]
+samples = [
+    {'x': [1, 0], 'y': 2},
+    {'x': [0, 1], 'y': 4},
+]
+result = gradient_descent_step(weights, samples, learning_rate=0.5)
+
+print(result['gradient'])
+# Out: [-1.0, -2.0]
+print(result['weights'])
+# Out: [0.5, 1.0]
+print(result['lossBefore'], result['lossAfter'])
+# Out: 5.0 2.8125
+```
+
+At the old weights, the residuals are `-2` and `-4`, so the sample gradients are
+`[-2, 0]` and `[0, -4]`. Their mean is `[-1, -2]`; subtracting half of it gives
+`[0.5, 1]`. The helper first computes the entire gradient at the **same old weight
+vector**, then updates all coordinates together. It returns a new vector and
+leaves `weights` and `samples` unchanged. Both reported losses use the same
+provided samples, evaluated before and after that one step.
+
+This is a **full-batch** step over all *n* supplied samples. A **mini-batch** uses
+a nonempty subset **B** of *m* samples and averages that subset with **1/m**:
+
+![minibatch](https://latex.codecogs.com/svg.latex?%5Cmathbf%20g_B%28%5Cmathbf%20w%29%3D%5Cfrac%7B1%7D%7Bm%7D%5Csum_%7Bi%5Cin%20B%7D%5Cnabla%20Q_i%28%5Cmathbf%20w%29%2C%5Cqquad%20m%3D%7CB%7C%3E0)
+
+<!-- \mathbf g_B(\mathbf w)=\frac{1}{m}\sum_{i\in B}\nabla Q_i(\mathbf w),\qquad m=|B|>0 -->
+
+The learning rate is still **η**; averaging a subset does not mean dividing by
+the full dataset size *n*. The helper always uses all samples passed to it, so
+passing a mini-batch computes that batch's gradient and its before/after losses.
+It performs one update, not a training loop.
+
+A smaller loss is the outcome of the numbers above, not a universal guarantee.
+A step that is too large can overshoot and increase even this squared-error
+loss. General objectives can also have stationary points that are not minima;
+step sizes and stopping criteria require care.
+
+The checked implementation accepts 1 through 20 weights and 1 through 10,000
+samples, with at most 100,000 sample-feature pairs. Feature dimensions must
+match, numerical inputs must be finite, the learning rate must be positive, and
+arithmetic overflow is rejected. No NumPy installation is needed.
+
+See [OpenStax's gradient definition](https://openstax.org/books/calculus-volume-3/pages/4-6-directional-derivatives-and-the-gradient),
+[Stanford CS229's linear-regression derivation](https://cs229.stanford.edu/notes2020spring/cs229-notes1.pdf),
+and [Dive into Deep Learning's mini-batch formulation](https://d2l.ai/chapter_optimization/minibatch-sgd.html).
+The CS229 notes use a sum objective; this example uses its mean, which introduces
+the explicit **1/n** factor.
+
+## integrals
+
+### indefinite integrals
+
+An integral with no bounds often denotes a family of antiderivatives:
+
+![indefinite integral](https://latex.codecogs.com/svg.latex?%5Cint%202x%5C%2Cdx%3Dx%5E2%2BC)
+
+<!-- \int 2x\,dx=x^2+C -->
+
+Every constant **C** gives the same derivative **2x**, so **+C** is part of the
+answer. An indefinite integral is not a single accumulated numeric value.
+
+```python
+def antiderivative(x, constant=0):
+    return x * x + constant
+
+# Both x*x and x*x + 7 differentiate to 2*x.
+```
+
+See [OpenStax, Antiderivatives](https://openstax.org/books/calculus-volume-1/pages/4-10-antiderivatives).
+
+### definite integrals
+
+Bounds turn integration into a signed accumulation over an interval. Here **dx**
+identifies the variable of integration:
+
+![definite integral](https://latex.codecogs.com/svg.latex?%5Cint_0%5E1%20x%5E2%5C%2Cdx%3D%5Cleft%5B%5Cfrac%7Bx%5E3%7D%7B3%7D%5Cright%5D_0%5E1%3D%5Cfrac13)
+
+<!-- \int_0^1 x^2\,dx=\left[\frac{x^3}{3}\right]_0^1=\frac13 -->
+
+For a continuous function with antiderivative **F**, the fundamental theorem of
+calculus gives **F(b) − F(a)**. The same constant appears at both endpoints and
+cancels. The integral above is therefore exactly **1/3**. Positive and negative
+values contribute opposite signs; reversing the bounds reverses the result.
+
+When an antiderivative is unavailable, composite trapezoids approximate the
+integral. Divide the interval into *n* equal pieces of signed width
+**h = (b − a)/n**, average each pair of endpoint heights, and sum the areas:
+
+![composite trapezoid rule](https://latex.codecogs.com/svg.latex?%5Cint_a%5Eb%20f%28x%29%5C%2Cdx%5Capprox%20h%5Cleft%5B%5Cfrac%7Bf%28a%29%2Bf%28b%29%7D2%2B%5Csum_%7Bi%3D1%7D%5E%7Bn-1%7Df%28a%2Bih%29%5Cright%5D)
+
+<!-- \int_a^b f(x)\,dx\approx h\left[\frac{f(a)+f(b)}2+\sum_{i=1}^{n-1}f(a+ih)\right] -->
+
+```python
+from examples.notation import integrate_trapezoid
+
+estimate = integrate_trapezoid(lambda x: x * x, 0, 1, subdivisions=1000)
+print(round(estimate, 9))
+# Out: 0.3333335
+
+print(round(integrate_trapezoid(lambda x: x * x, 1, 0), 9))
+# Out: -0.3333335
+```
+
+The helper accepts **1 through 1,000,000 subdivisions**, evaluates at most *n + 1*
+points, and rejects nonfinite inputs/results or a grid that collapses through
+rounding. It uses finite endpoints and supplies no accuracy guarantee. Narrow
+peaks, rapid oscillations, discontinuities, or singularities can defeat uniform
+sampling; an improper integral needs separate treatment. Comparing resolutions
+can expose error, but agreement alone does not prove accuracy. Production work
+may require adaptive quadrature and an error estimate.
+
+See OpenStax for the [fundamental theorem](https://openstax.org/books/calculus-volume-2/pages/1-3-the-fundamental-theorem-of-calculus)
+and [trapezoidal rule and error assumptions](https://openstax.org/books/calculus-volume-2/pages/3-6-numerical-integration).
+
+## worked graphics expression
+
+The notation comes together in diffuse lighting. For a nonemissive Lambertian
+surface, the reflected outgoing radiance in an outward viewing direction is:
+
+![Lambertian reflection integral](https://latex.codecogs.com/svg.latex?L_o%28%5Comega_o%29%3D%5Cfrac%7B%5Crho%7D%7B%5Cpi%7D%5Cint_%7B%5COmega%5E%2B%7DL_i%28%5Comega_i%29%5Cmax%280%2C%5Cmathbf%20n%5Ccdot%5Comega_i%29%5C%2Cd%5Comega_i)
+
+<!-- L_o(\omega_o)=\frac{\rho}{\pi}\int_{\Omega^+}L_i(\omega_i)\max(0,\mathbf n\cdot\omega_i)\,d\omega_i -->
+
+Here **ρ** is a dimensionless reflectance between `0` and `1`; **n** is the
+outward unit normal; **ωᵢ** is a unit direction from the surface toward incoming
+light; and **Ω⁺** is the hemisphere above the surface. The dot product is the
+incidence cosine, and **dωᵢ** is a solid-angle element in steradians.
+
+PBRT's [Diffuse Reflection](https://pbr-book.org/4ed/Reflection_Models/Diffuse_Reflection)
+defines the Lambertian BRDF as **ρ/π**. Its
+[Light Transport Equation](https://pbr-book.org/4ed/Light_Transport_I_Surface_Reflection/The_Light_Transport_Equation)
+places the BRDF, incoming radiance and cosine inside the directional integral.
+The hemisphere integral here is incident irradiance **E**, so **Lₒ = ρE/π**.
+
+For one unoccluded directional beam, let **E⊥** be its irradiance measured on a
+plane perpendicular to the beam, before surface tilt. The surface receives
+**E = E⊥ max(0, n · ℓ)**, giving this concrete reduction:
+
+![Lambertian directional beam](https://latex.codecogs.com/svg.latex?L_o%3D%5Cfrac%7B%5Crho%7D%7B%5Cpi%7DE_%7B%5Cperp%7D%5Cmax%280%2C%5Cmathbf%20n%5Ccdot%5Cboldsymbol%5Cell%29)
+
+<!-- L_o=\frac{\rho}{\pi}E_{\perp}\max(0,\mathbf n\cdot\boldsymbol\ell) -->
+
+```python
+import math
+from examples.notation import lambertian_reflection
+
+reflectance = 0.8
+beam_irradiance = 10.0                  # E_perp, watts per square metre
+normal = [0, 0, 1]
+toward_light = [math.sqrt(3), 0, 1]     # normalized internally: cosine = 0.5
+
+radiance = lambertian_reflection(
+    reflectance, beam_irradiance, normal, toward_light
+)
+print(round(radiance, 6))
+# Out: 1.27324  (4/pi watts per square metre per steradian)
+```
+
+This example works through one scalar wavelength band: tilt halves the incident
+irradiance to `5 W/m²`, and multiplying by `0.8/pi sr⁻¹` gives the displayed
+radiance. A light below the surface contributes zero. The helper normalizes
+nonzero three-component vectors and checks the physical scalar ranges.
+
+The example assumes a matte, nonemitting surface, one visible beam and an
+outward-facing viewer. It omits shadows, indirect illumination and display color
+encoding. If the input already measures irradiance on the tilted surface, use
+`reflectance * surface_irradiance / math.pi` directly; applying another cosine
+would count the tilt twice. Radiance is a physical quantity, not an sRGB pixel
+value. This is a worked reduction of the cited transport model, not a full renderer.
+
+Run the standard-library demonstrations from the repository root with
+`python3 examples/notation.py`; their reusable implementations live in
+[`examples/notation.py`](./examples/notation.py).
+
 ## more...
 
-Like this guide? Suggest some [more features](https://github.com/Jam3/math-as-code/issues/1) or send us a Pull Request!
+Like this guide? Suggest some [more features](https://github.com/alikatgh/mathasacode/issues) or send us a Pull Request!
 
 ## Contributing
 
@@ -1282,7 +1756,9 @@ For details on how to contribute, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## License
 
-MIT, see [LICENSE.md](http://github.com/Jam3/math-as-code/blob/master/LICENSE.md) for details.
+This interactive edition is based on [Experience-Monks/math-as-code](https://github.com/Experience-Monks/math-as-code). Original authorship and the MIT license are retained.
+
+MIT, see [LICENSE.md](./LICENSE.md) for details.
 
 [1]: https://en.wikipedia.org/wiki/(%CE%B5,_%CE%B4)-definition_of_limit
 [2]: http://mimosa-pudica.net/improved-oren-nayar.html#images

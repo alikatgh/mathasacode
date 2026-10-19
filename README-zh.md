@@ -6,7 +6,7 @@
 
 动机:学术论文可能会吓着自学游戏和图形的程序猿:)
 
-这个指南还没有完成。如果你发现错误或者想要贡献，请[open a ticket](https://github.com/Jam3/math-as-code/issues)或发一个 PR。
+这份参考涵盖下方目录中的符号，并补充了矩阵乘法、张量积、Delta、导数、积分和一个图形学实例。如果你发现错误或者想要贡献，请[open a ticket](https://github.com/alikatgh/mathasacode/issues)或发一个 PR。
 
 
 > **注意**： 简洁起见，有些代码示例使用了[npm 包](https://www.npmjs.com/)。你可以到他们的GitHub repos来查看实现的详细情况。
@@ -30,10 +30,11 @@
   - [点乘](#点乘)
   - [叉乘](#叉乘)
 - [西格玛 `Σ`](#西格玛sigma) - *求和*
+- [平均值](#平均值)
 - [大写 Pi `Π`](#大写-pi) - *序列的积*
 - [管道 `||`](#管道pipes)
   - [绝对值](#绝对值)
-  - [欧几里得模](#欧几里得模)
+  - [欧几里得模](#欧几里得模euclidean-norm)
   - [行列式](#行列式)
 - [帽子 **`â`**](#帽子) - *单位向量*
 - ["属于" `∈` `∉`](#属于)
@@ -50,6 +51,18 @@
   - [与 & 或 `∧` `∨`](#与conjunction--或disjunction)
 - [逻辑非 `¬` `~` `!`](#逻辑非logical-negation)
 - [区间（intervals）](#区间intervals)
+- [矩阵乘法](#矩阵乘法)
+- [张量积 `⊗`](#张量积)
+- [Delta `Δ` `δ`](#delta)
+  - [有限变化](#有限变化)
+  - [Kronecker delta](#kronecker-delta)
+  - [Dirac delta](#dirac-delta)
+- [导数](#导数)
+- [梯度与梯度下降](#梯度与梯度下降)
+- [积分 `∫`](#积分)
+  - [不定积分](#不定积分)
+  - [定积分](#定积分)
+- [图形学实例：Lambertian 反射](#图形学实例lambertian-反射)
 - [更多...](#更多)
 
 ## 变量名约定
@@ -159,10 +172,10 @@ console.log(math.multiply(a, b).toString())
 //=> '1 + 3i'
 ```
 
-这个库还支持字符串表达式求值， 所以上边的可以写为：
+这个库还支持字符串表达式求值，使用当前的 [math.evaluate](https://mathjs.org/docs/reference/functions/evaluate.html)，所以上边的可以写为：
 
 ```js
-console.log(math.eval('(3 - i) * i').toString())
+console.log(math.evaluate('(3 - i) * i').toString())
 //=> '1 + 3i'
 ```
 
@@ -240,7 +253,7 @@ function multiplyScalar(a, scalar) {
 }
 ```
 
-同样的，矩阵相乘也不用 `·` 或 `×` 符号。 矩阵乘法会在后边章节提到.
+同样的，矩阵相乘通常直接写作 **AB**。详见[矩阵乘法](#矩阵乘法)；具体符号仍以作者的定义为准。
 
 #### 点乘
 
@@ -370,6 +383,28 @@ for (var i = 1; i <= 2; i++) {
 
 这里，`sum` 值为 `135`。
 
+## 平均值
+
+先求和，再除以数值的个数，就得到算术平均值：
+
+![arithmetic mean](https://latex.codecogs.com/svg.latex?%5Cbar%7Bx%7D%3D%5Cfrac%7B1%7D%7Bn%7D%5Csum_%7Bi%3D1%7D%5E%7Bn%7Dx_i%2C%5Cqquad%20n%3E0)
+
+<!-- \bar{x}=\frac{1}{n}\sum_{i=1}^{n}x_i,\qquad n>0 -->
+
+[求和符号](#西格玛sigma)把数值加起来，前面的 **1/n** 再把总和除以个数。这里要求 **n > 0**；空数组的算术平均值没有定义，不能用除以零来计算。
+
+```js
+const { mean } = require('./examples/notation.cjs');
+
+const values = [2, 4, 6, 8];
+console.log(mean(values));
+// 5
+```
+
+这个带检查的实现接受 1 到 10,000 个有限实数，不会修改原数组。它先缩放再求和，因此 `mean([1e308, 1e308])` 仍然得到 `1e308`，而不会因为未缩放的中间总和溢出而失败。
+
+**(1/n) Σ** 也可以对向量逐分量求平均，例如对各样本的损失[梯度](#梯度与梯度下降)求平均。
+
 ## 大写 Pi
 
 大写 Pi 或 “大Pi” 与 [西格玛](#西格玛sigma) 非常接近， 不同的是我们用乘法取得一系列数字的乘积。 
@@ -393,7 +428,7 @@ for (var i = 1; i <= 6; i++) {
 
 ## 管道（pipes）
 
-管道符号，就是 *竖线（bars）*，根据上下文不同，可以表示不同意思。下边的是3种常见用途 [绝对值](#绝对值), [欧几里得模](#欧几里得模), 和 [行列式](#行列式)。
+管道符号，就是 *竖线（bars）*，根据上下文不同，可以表示不同意思。下边的是3种常见用途 [绝对值](#绝对值), [欧几里得模](#欧几里得模euclidean-norm), 和 [行列式](#行列式)。
 
 这3种特性都是描述对象的 *长度（length）* 。
 
@@ -520,7 +555,7 @@ function normalize(vec) {
 
 集合理论中，“属于”符号 `∈` 和 `∋` 可以被用来描述某物是否为集合中的一个元素。例如：
 
-![element1](http://latex.codecogs.com/svg.latex?A%3D%5Cleft%20%5C%7B3%2C9%2C14%7D%7B%20%5Cright%20%5C%7D%2C%203%20%5Cin%20A)
+![element1](http://latex.codecogs.com/svg.latex?A%3D%5Cleft%20%5C%7B3%2C9%2C14%20%5Cright%20%5C%7D%2C%203%20%5Cin%20A)
 
 <!-- A=\left \{3,9,14}{  \right \}, 3 \in A -->
 
@@ -546,13 +581,13 @@ A.has(3)
 
 反向的 `∋` 意义相同，只是顺序改变：
 
-![element2](http://latex.codecogs.com/svg.latex?A%3D%5Cleft%20%5C%7B3%2C9%2C14%7D%7B%20%5Cright%20%5C%7D%2C%20A%20%5Cni%203)
+![element2](http://latex.codecogs.com/svg.latex?A%3D%5Cleft%20%5C%7B3%2C9%2C14%20%5Cright%20%5C%7D%2C%20A%20%5Cni%203)
 
 <!-- A=\left \{3,9,14}{  \right \}, A \ni 3 -->
 
 你可以使用 "不属于" 符号 `∉` 和 `∌` 像这样：
 
-![element3](http://latex.codecogs.com/svg.latex?A%3D%5Cleft%20%5C%7B3%2C9%2C14%7D%7B%20%5Cright%20%5C%7D%2C%206%20%5Cnotin%20A)
+![element3](http://latex.codecogs.com/svg.latex?A%3D%5Cleft%20%5C%7B3%2C9%2C14%20%5Cright%20%5C%7D%2C%206%20%5Cnotin%20A)
 
 <!-- A=\left \{3,9,14}{  \right \}, 6 \notin A -->
 
@@ -788,7 +823,7 @@ function square (a) {
 
 在代码中，我们通常的分配一个描述更详细的变量名，例如`transformedPosition`。
 
-对于一个[函数](#函数)，撇号通常描述为函数的 *导函数（derivative）* 。导函数会在未来的章节解释。我们来看一个之前的函数：
+对于一个[函数](#函数)，撇号通常描述为函数的 *导函数（derivative）* 。[导数](#导数)一节会解释它的定义和数值近似。我们来看一个之前的函数：
 
 ![function2](http://latex.codecogs.com/svg.latex?f%5Cleft%20%28x%20%5Cright%20%29%20%3D%20x%5E%7B2%7D)
 
@@ -1056,9 +1091,340 @@ Interval.difference(b, a)
 - [next-after](https://github.com/scijs/nextafter) 
 - [interval-arithmetic](https://github.com/maurizzzio/interval-arithmetic)
 
+## 矩阵乘法
+
+矩阵是按行和列排列的数。这里用嵌套数组表示矩阵：外层数组的每个元素是一行，所以 `[[1, 2], [3, 4]]` 是一个 2 行 2 列的矩阵。它与[行列式](#行列式)一节使用的一维、列优先存储方式不同；计算前要先确认数据的布局。
+
+对于通常写作 **AB** 的矩阵乘法，**A** 的列数必须等于 **B** 的行数。若 **A** 是 *m × n*，**B** 是 *n × p*，结果就是 *m × p*。结果中第 *i* 行、第 *j* 列的元素，是 **A** 的第 *i* 行与 **B** 的第 *j* 列的[点乘](#点乘)：
+
+![matrix-rule](https://latex.codecogs.com/svg.latex?%5Cmathbf%7BA%7D%5Cin%5Cmathbb%7BR%7D%5E%7Bm%5Ctimes%20n%7D%2C%5Cquad%5Cmathbf%7BB%7D%5Cin%5Cmathbb%7BR%7D%5E%7Bn%5Ctimes%20p%7D%2C%5Cquad%5Cmathbf%7BC%7D%3D%5Cmathbf%7BA%7D%5Cmathbf%7BB%7D%5Cin%5Cmathbb%7BR%7D%5E%7Bm%5Ctimes%20p%7D%2C%5Cqquad%20C_%7Bij%7D%3D%5Csum_%7Bk%3D1%7D%5E%7Bn%7DA_%7Bik%7DB_%7Bkj%7D)
+
+<!-- \mathbf{A}\in\mathbb{R}^{m\times n},\quad\mathbf{B}\in\mathbb{R}^{n\times p},\quad\mathbf{C}=\mathbf{A}\mathbf{B}\in\mathbb{R}^{m\times p},\qquad C_{ij}=\sum_{k=1}^{n}A_{ik}B_{kj} -->
+
+数学下标从 1 开始；下面 JavaScript 数组的下标从 0 开始。
+
+![matrix-example](https://latex.codecogs.com/svg.latex?%5Cbegin%7Bbmatrix%7D1%262%5C%5C3%264%5Cend%7Bbmatrix%7D%5Cbegin%7Bbmatrix%7D5%266%5C%5C7%268%5Cend%7Bbmatrix%7D%3D%5Cbegin%7Bbmatrix%7D19%2622%5C%5C43%2650%5Cend%7Bbmatrix%7D)
+
+<!-- \begin{bmatrix}1&2\\3&4\end{bmatrix}\begin{bmatrix}5&6\\7&8\end{bmatrix}=\begin{bmatrix}19&22\\43&50\end{bmatrix} -->
+
+例如左上角是 `1 * 5 + 2 * 7 = 19`，右上角是 `1 * 6 + 2 * 8 = 22`。[完整实现](./examples/notation.cjs)中，最内层循环对应公式里的[求和](#西格玛sigma)。下面直接使用带输入检查和计算量限制的实现：
+
+```js
+var { multiplyMatrices } = require('./examples/notation.cjs')
+
+multiplyMatrices([[1, 2], [3, 4]], [[5, 6], [7, 8]])
+//=> [[19, 22], [43, 50]]
+```
+
+这不是逐元素相乘（Hadamard product）；后者会得到 `[[5, 12], [21, 32]]`。矩阵乘法的顺序也很重要：**AB** 和 **BA** 可能不同，甚至只有其中一个有定义。需要处理外部输入时，可参考带输入检查的[完整实现](./examples/notation.cjs)。
+
+## 张量积
+
+符号 `⊗` 表示*张量积（tensor product）*。与点乘把配对分量相乘再相加不同，张量积保留所有分量组合。选定实向量空间的基后，两个向量的张量积可以用*外积（outer product）*矩阵表示：
+
+![outer-product](https://latex.codecogs.com/svg.latex?%5Cmathbf%7Bu%7D%5Cotimes%5Cmathbf%7Bv%7D%5C%20%5Clongleftrightarrow%5C%20%5Cmathbf%7Bu%7D%5Cmathbf%7Bv%7D%5E%7BT%7D%3D%5Cbegin%7Bbmatrix%7D1%5C%5C2%5Cend%7Bbmatrix%7D%5Cbegin%7Bbmatrix%7D3%264%265%5Cend%7Bbmatrix%7D%3D%5Cbegin%7Bbmatrix%7D3%264%265%5C%5C6%268%2610%5Cend%7Bbmatrix%7D)
+
+<!-- \mathbf{u}\otimes\mathbf{v}\ \longleftrightarrow\ \mathbf{u}\mathbf{v}^{T}=\begin{bmatrix}1\\2\end{bmatrix}\begin{bmatrix}3&4&5\end{bmatrix}=\begin{bmatrix}3&4&5\\6&8&10\end{bmatrix} -->
+
+```js
+var { kroneckerProduct } = require('./examples/notation.cjs')
+
+kroneckerProduct([[1], [2]], [[3, 4, 5]])
+//=> [[3, 4, 5], [6, 8, 10]]
+```
+
+若向量分别有 *m* 和 *n* 个分量，结果有 *m × n* 个分量。这里 **v**<sup>T</sup> 表示转置，不是复数共轭转置。
+
+对于矩阵，选定基以后，线性映射的张量积可以用 *Kronecker product* 表示：把 **A** 的每个元素替换为该元素乘上整个 **B** 的一个块。下面展示 **A** 为 2 × 2 的情形：
+
+![kronecker-product](https://latex.codecogs.com/svg.latex?%5Cmathbf%7BA%7D%5Cotimes%5Cmathbf%7BB%7D%3D%5Cbegin%7Bbmatrix%7Da_%7B11%7D%5Cmathbf%7BB%7D%26a_%7B12%7D%5Cmathbf%7BB%7D%5C%5Ca_%7B21%7D%5Cmathbf%7BB%7D%26a_%7B22%7D%5Cmathbf%7BB%7D%5Cend%7Bbmatrix%7D)
+
+<!-- \mathbf{A}\otimes\mathbf{B}=\begin{bmatrix}a_{11}\mathbf{B}&a_{12}\mathbf{B}\\a_{21}\mathbf{B}&a_{22}\mathbf{B}\end{bmatrix} -->
+
+若 **A** 是 *m × n*，**B** 是 *p × q*，结果是 *mp × nq*，不要求矩阵乘法所需的内维度相同。
+
+```js
+var { kroneckerProduct } = require('./examples/notation.cjs')
+
+kroneckerProduct([[1, 2], [3, 4]], [[0, 5], [6, 7]])
+//=> [
+//     [0, 5, 0, 10],
+//     [6, 7, 12, 14],
+//     [0, 15, 0, 20],
+//     [18, 21, 24, 28]
+//   ]
+```
+
+不要把 `⊗` 与逐元素相乘 `⊙` 混为一谈。*张量缩并（tensor contraction）*还要沿指定的配对下标求和，例如矩阵乘法中的 *k*；上面的张量积本身没有这一步。张量库的 `multiply`、`matmul`、`outer` 和 `tensordot` 可能对应不同运算，要同时阅读维度和下标定义。
+
+## Delta
+
+大写 `Δ` 与小写 `δ` 可能表示不同概念；它们的形状相似，并不表示可以共用一个函数。
+
+#### 有限变化
+
+`Δx` 常表示两个值的差，`Δf` 则表示函数值的变化：
+
+![finite-change](https://latex.codecogs.com/svg.latex?%5CDelta%20x%3Dx_1-x_0%2C%5Cqquad%5CDelta%20f%3Df%28x%2B%5CDelta%20x%29-f%28x%29)
+
+<!-- \Delta x=x_1-x_0,\qquad\Delta f=f(x+\Delta x)-f(x) -->
+
+```js
+const x0 = 2
+const x1 = 2.5
+const f = x => x * x
+
+const deltaX = x1 - x0
+//=> 0.5
+const deltaF = f(x1) - f(x0)
+//=> 2.25
+const averageRate = deltaF / deltaX
+//=> 4.5
+```
+
+这是区间上的平均变化率，还不是某一点的导数。导数要进一步考虑变化量趋于 0 时的极限，见[导数](#导数)。
+
+#### Kronecker delta
+
+Kronecker delta 用两个离散下标表示“相同则为 1，不同则为 0”。它也是单位矩阵的元素：
+
+![kronecker-delta](https://latex.codecogs.com/svg.latex?%5Cdelta_%7Bij%7D%3D%5Cbegin%7Bcases%7D1%26i%3Dj%5C%5C0%26i%5Cne%20j%5Cend%7Bcases%7D%2C%5Cqquad%5Csum_%7Bj%3D1%7D%5E%7Bn%7D%5Cdelta_%7Bij%7Dv_j%3Dv_i)
+
+<!-- \delta_{ij}=\begin{cases}1&i=j\\0&i\ne j\end{cases},\qquad\sum_{j=1}^{n}\delta_{ij}v_j=v_i -->
+
+```js
+function kroneckerDelta(i, j) {
+  return i === j ? 1 : 0
+}
+
+kroneckerDelta(2, 2) //=> 1
+kroneckerDelta(2, 3) //=> 0
+
+const v = [7, 8, 9]
+v.reduce((sum, value, j) => sum + kroneckerDelta(1, j) * value, 0)
+//=> 8，即 JavaScript 下标为 1 的分量
+```
+
+这里的下标是整数标签；这个函数不用于比较两个浮点数是否“足够接近”。
+
+#### Dirac delta
+
+连续变量中的 Dirac delta `δ(x − a)` 是*分布（distribution）*。它通过作用在测试函数上来定义；不能将它实现成一个普通的、在某点返回 1 的相等判断函数。对于适当的光滑测试函数，它有取样性质：
+
+![dirac-delta](https://latex.codecogs.com/svg.latex?%5Cint_%7B-%5Cinfty%7D%5E%7B%5Cinfty%7D%5Cdelta%28x-a%29%5Cvarphi%28x%29%5C%2Cdx%3D%5Cvarphi%28a%29)
+
+<!-- \int_{-\infty}^{\infty}\delta(x-a)\varphi(x)\,dx=\varphi(a) -->
+
+见 [NIST DLMF §1.17](https://dlmf.nist.gov/1.17)。公式中的积分是分布意义下的表达式。若只是表示这个取样操作，可以直接写：
+
+```js
+// 表示 δ(x - a) 对测试函数的作用，不是 δ(x) 的点值。
+function applyDiracAt(a, testFunction) {
+  return testFunction(a)
+}
+
+applyDiracAt(2, x => x * x)
+//=> 4
+```
+
+数值模拟有时使用面积为 1 的窄脉冲来近似 Dirac delta；脉冲的宽度、采样间隔及归一化都会影响近似。离散 Kronecker delta 与连续 Dirac delta 不能直接互换。
+
+## 导数
+
+导数表示函数在某一点的瞬时变化率。对于单变量函数，`f′(x)` 与 `df/dx` 都可以表示一阶导数。定义是差商的极限，前提是这个极限存在：
+
+![derivative-definition](https://latex.codecogs.com/svg.latex?f%27%28x%29%3D%5Cfrac%7Bdf%7D%7Bdx%7D%3D%5Clim_%7Bh%5Cto0%7D%5Cfrac%7Bf%28x%2Bh%29-f%28x%29%7D%7Bh%7D)
+
+<!-- f'(x)=\frac{df}{dx}=\lim_{h\to0}\frac{f(x+h)-f(x)}{h} -->
+
+例如对平方函数展开，先在 *h ≠ 0* 时约掉 *h*，再取极限：
+
+![derivative-square](https://latex.codecogs.com/svg.latex?f%28x%29%3Dx%5E2%2C%5Cqquad%5Cfrac%7B%28x%2Bh%29%5E2-x%5E2%7D%7Bh%7D%3D%5Cfrac%7B2xh%2Bh%5E2%7D%7Bh%7D%3D2x%2Bh%5Cquad%28h%5Cne0%29%2C%5Cqquad%20f%27%28x%29%3D%5Clim_%7Bh%5Cto0%7D%282x%2Bh%29%3D2x)
+
+<!-- f(x)=x^2,\qquad\frac{(x+h)^2-x^2}{h}=\frac{2xh+h^2}{h}=2x+h\quad(h\ne0),\qquad f'(x)=\lim_{h\to0}(2x+h)=2x -->
+
+这给出了精确的导函数 `x => 2 * x`，所以 `f′(2) = 4`。在定义中不能先把 *h* 设为 0；那会产生 `0 / 0`。
+
+如果只有一个可调用的函数，没有它的符号表达式，可以使用*中心差分*近似导数：
+
+![centered-derivative](https://latex.codecogs.com/svg.latex?f%27%28x%29%5Capprox%5Cfrac%7Bf%28x%2Bh%29-f%28x-h%29%7D%7B2h%7D)
+
+<!-- f'(x)\approx\frac{f(x+h)-f(x-h)}{2h} -->
+
+```js
+function derivative(f, x, h = 1e-5) {
+  if (!Number.isFinite(h) || h <= 0) {
+    throw new RangeError('步长必须是有限正数')
+  }
+  return (f(x + h) - f(x - h)) / (2 * h)
+}
+
+derivative(x => x * x, 2)
+//=> 约 4
+```
+
+这段代码是数值近似，不是符号求导或自动微分。对足够光滑的函数，减小步长通常会先减少截断误差，但步长过小会放大浮点相减和舍入误差。函数不光滑、极限不存在或采样点超出定义域时，差分结果不能证明导数存在。
+
+## 梯度与梯度下降
+
+[导数](#导数)描述单变量的变化率。对于以权重向量 **w** 为输入、以标量为输出的可微函数 **Q**，**梯度** **∇Q** 是各个偏导数组成的向量；每个偏导数只改变一个权重，其他分量保持不变：
+
+![gradient](https://latex.codecogs.com/svg.latex?%5Cnabla%20Q%28%5Cmathbf%20w%29%3D%5Cbegin%7Bbmatrix%7D%5Cfrac%7B%5Cpartial%20Q%7D%7B%5Cpartial%20w_1%7D%5C%5C%5Cvdots%5C%5C%5Cfrac%7B%5Cpartial%20Q%7D%7B%5Cpartial%20w_d%7D%5Cend%7Bbmatrix%7D)
+
+<!-- \nabla Q(\mathbf w)=\begin{bmatrix}\frac{\partial Q}{\partial w_1}\\\vdots\\\frac{\partial Q}{\partial w_d}\end{bmatrix} -->
+
+如果目标函数是有限个可微样本损失的平均值：
+
+![objective](https://latex.codecogs.com/svg.latex?Q%28%5Cmathbf%20w%29%3D%5Cfrac%7B1%7D%7Bn%7D%5Csum_%7Bi%3D1%7D%5E%7Bn%7DQ_i%28%5Cmathbf%20w%29%2C%5Cqquad%20n%3E0)
+
+<!-- Q(\mathbf w)=\frac{1}{n}\sum_{i=1}^{n}Q_i(\mathbf w),\qquad n>0 -->
+
+那么目标函数的梯度就是这些样本梯度的平均值。具体考虑线性预测 **w · xᵢ**，以及平方误差的一半：
+
+![sample loss](https://latex.codecogs.com/svg.latex?%5Cbegin%7Baligned%7DQ_i%28%5Cmathbf%20w%29%26%3D%5Cfrac12%28%5Cmathbf%20w%5Ccdot%5Cmathbf%20x_i-y_i%29%5E2%5C%5C%5Cnabla%20Q_i%28%5Cmathbf%20w%29%26%3D%28%5Cmathbf%20w%5Ccdot%5Cmathbf%20x_i-y_i%29%5Cmathbf%20x_i%5Cend%7Baligned%7D)
+
+<!-- \begin{aligned}Q_i(\mathbf w)&=\frac12(\mathbf w\cdot\mathbf x_i-y_i)^2\\\nabla Q_i(\mathbf w)&=(\mathbf w\cdot\mathbf x_i-y_i)\mathbf x_i\end{aligned} -->
+
+**xᵢ** 是特征向量，**yᵢ** 是目标值，残差是 `预测值 - 目标值`。样本梯度是残差乘以特征向量，与 **w** 具有相同的分量数。这个例子没有单独的截距项；需要截距时可以加入一个恒为 1 的特征。
+
+取正的学习率 **η**，沿平均梯度的反方向更新一次。原地赋值常写成 `w := w − η∇Q(w)`；把新值另记为 **w_next**，可以明确右侧全部使用旧权重：
+
+![update](https://latex.codecogs.com/svg.latex?%5Cbegin%7Baligned%7D%5Cmathbf%20w_%7B%5Cmathrm%7Bnext%7D%7D%26%3D%5Cmathbf%20w-%5Ceta%5Cnabla%20Q%28%5Cmathbf%20w%29%5C%5C%26%3D%5Cmathbf%20w-%5Cfrac%7B%5Ceta%7D%7Bn%7D%5Csum_%7Bi%3D1%7D%5E%7Bn%7D%5Cnabla%20Q_i%28%5Cmathbf%20w%29%5Cend%7Baligned%7D)
+
+<!-- \begin{aligned}\mathbf w_{\mathrm{next}}&=\mathbf w-\eta\nabla Q(\mathbf w)\\&=\mathbf w-\frac{\eta}{n}\sum_{i=1}^{n}\nabla Q_i(\mathbf w)\end{aligned} -->
+
+```js
+const { gradientDescentStep } = require('./examples/notation.cjs');
+
+const weights = [0, 0];
+const samples = [
+  { x: [1, 0], y: 2 },
+  { x: [0, 1], y: 4 },
+];
+const result = gradientDescentStep(weights, samples, 0.5);
+
+console.log(result.gradient);
+// [-1, -2]
+console.log(result.weights);
+// [0.5, 1]
+console.log(result.lossBefore, result.lossAfter);
+// 5 2.8125
+```
+
+在旧权重处，两个残差分别为 `-2`、`-4`，样本梯度分别为 `[-2, 0]`、`[0, -4]`，平均得到 `[-1, -2]`。减去这个向量的 `0.5` 倍，就得到新权重 `[0.5, 1]`。实现先在**同一份旧权重**上求出完整梯度，再同时更新所有分量；返回新数组，不修改 `weights` 或 `samples`。前后两个损失都在传入的同一组样本上计算。
+
+这是使用全部 *n* 个传入样本的**全批量**更新。如果只取一个非空的**小批量** **B**，其中有 *m* 个样本，则对这一批使用 **1/m** 求平均：
+
+![minibatch](https://latex.codecogs.com/svg.latex?%5Cmathbf%20g_B%28%5Cmathbf%20w%29%3D%5Cfrac%7B1%7D%7Bm%7D%5Csum_%7Bi%5Cin%20B%7D%5Cnabla%20Q_i%28%5Cmathbf%20w%29%2C%5Cqquad%20m%3D%7CB%7C%3E0)
+
+<!-- \mathbf g_B(\mathbf w)=\frac{1}{m}\sum_{i\in B}\nabla Q_i(\mathbf w),\qquad m=|B|>0 -->
+
+学习率仍为 **η**；小批量平均不会再除以完整数据集的个数 *n*。此函数总是处理传入的全部样本，所以传入小批量时，返回的是这一批的梯度和前后损失。它只进行一次更新，没有隐藏的训练循环。
+
+这个具体例子的损失从 `5` 变成 `2.8125`，不表示任何一步都会下降。学习率过大时，即使这种平方误差也可能因为越过合适范围而增大；一般目标还可能有不是极小值的驻点，需要选择步长和停止条件。
+
+带检查的实现限制为 1 到 20 个权重、1 到 10,000 个样本，且样本数乘以特征数不超过 100,000。各样本特征维度必须一致，数值必须有限，学习率必须为正；算术溢出会被拒绝。示例直接使用[规范实现](./examples/notation.cjs)，没有复制无界循环。
+
+参考 [OpenStax 的梯度定义](https://openstax.org/books/calculus-volume-3/pages/4-6-directional-derivatives-and-the-gradient)、[Stanford CS229 的线性回归推导](https://cs229.stanford.edu/notes2020spring/cs229-notes1.pdf)和 [Dive into Deep Learning 的小批量公式](https://d2l.ai/chapter_optimization/minibatch-sgd.html)。CS229 笔记使用求和目标，这里改用平均目标，因此显式出现 **1/n**。
+
+## 积分
+
+`∫` 表示积分。先区分没有上下限的*不定积分*与带上下限的*定积分*：前者描述一族函数，后者在这里是一个数值。
+
+#### 不定积分
+
+不定积分寻找原函数，也就是求导后得到原来函数的函数。例如：
+
+![indefinite-integral](https://latex.codecogs.com/svg.latex?%5Cint%20x%5E2%5C%2Cdx%3D%5Cfrac%7Bx%5E3%7D%7B3%7D%2BC%2C%5Cqquad%20C%5Cin%5Cmathbb%7BR%7D)
+
+<!-- \int x^2\,dx=\frac{x^3}{3}+C,\qquad C\in\mathbb{R} -->
+
+常数 *C* 不可省略，因为每个常数求导都为 0。代码可以用参数来表示这族原函数：
+
+```js
+function squareAntiderivative(x, C = 0) {
+  return x * x * x / 3 + C
+}
+
+squareAntiderivative(2, 0) //=> 8 / 3
+squareAntiderivative(2, 5) //=> 8 / 3 + 5
+```
+
+这是已知公式的实现，不是一个能够自动求任意不定积分的程序。
+
+#### 定积分
+
+定积分可以表示区间上的带符号累积量；函数位于横轴以下的部分带负号。对平方函数，可以用原函数精确计算：
+
+![definite-integral](https://latex.codecogs.com/svg.latex?%5Cint_0%5E1%20x%5E2%5C%2Cdx%3D%5Cleft%5B%5Cfrac%7Bx%5E3%7D%7B3%7D%5Cright%5D_0%5E1%3D%5Cfrac13)
+
+<!-- \int_0^1 x^2\,dx=\left[\frac{x^3}{3}\right]_0^1=\frac13 -->
+
+如果没有原函数，也可以划分区间并用*复合梯形法*近似。把 *[a, b]* 等分为 *n* 段，每一段用两端函数值的平均数乘以宽度，再把它们加起来：
+
+![trapezoid-rule](https://latex.codecogs.com/svg.latex?h%3D%5Cfrac%7Bb-a%7D%7Bn%7D%2C%5Cqquad%5Cint_a%5Eb%20f%28x%29%5C%2Cdx%5Capprox%20h%5Cleft%28%5Cfrac%7Bf%28a%29%2Bf%28b%29%7D%7B2%7D%2B%5Csum_%7Bi%3D1%7D%5E%7Bn-1%7Df%28a%2Bih%29%5Cright%29)
+
+<!-- h=\frac{b-a}{n},\qquad\int_a^b f(x)\,dx\approx h\left(\frac{f(a)+f(b)}{2}+\sum_{i=1}^{n-1}f(a+ih)\right) -->
+
+```js
+function integrateTrapezoid(f, a, b, n = 1000) {
+  if (!Number.isInteger(n) || n <= 0 || n > 1000000) {
+    throw new RangeError('分段数必须是 1 到 1000000 之间的整数')
+  }
+  const h = (b - a) / n
+  let sum = (f(a) + f(b)) / 2
+  for (let i = 1; i < n; i++) {
+    sum += f(a + i * h)
+  }
+  return h * sum
+}
+
+integrateTrapezoid(x => x * x, 0, 1, 1000)
+//=> 约 0.3333335，与精确值 1/3 接近
+```
+
+这里的结果不是精确等号。对这个光滑例子，增加分段数可以降低误差；一般函数还可能有尖峰、间断、奇点或浮点误差，需要适合该问题的积分方法和误差检查。交换积分上下限会改变符号；定积分结果不再附加任意常数 *C*。
+
+## 图形学实例：Lambertian 反射
+
+把这些符号放进一个实际公式中。[《Physically Based Rendering》第四版 §9.2](https://pbr-book.org/4ed/Reflection_Models/Diffuse_Reflection)给出了 Lambertian 漫反射 BRDF；入射与出射方向处于同一反射半球时：
+
+![lambertian-brdf](https://latex.codecogs.com/svg.latex?f_r%28%5Comega_i%2C%5Comega_o%29%3D%5Cfrac%7B%5Crho%7D%7B%5Cpi%7D)
+
+<!-- f_r(\omega_i,\omega_o)=\frac{\rho}{\pi} -->
+
+*ρ* 是无量纲反射率，取值在 0 到 1 之间；BRDF 的单位是 sr⁻¹。它不是最终的像素亮度。[§4.3 的表面反射方程](https://pbr-book.org/4ed/Radiometry,_Spectra,_and_Color/Surface_Reflection)还要对入射方向积分：
+
+![lambertian-integral](https://latex.codecogs.com/svg.latex?L_o%28%5Comega_o%29%3D%5Cint_%7B%5COmega%5E%2B%7D%5Cfrac%7B%5Crho%7D%7B%5Cpi%7DL_i%28%5Comega_i%29%5Cmax%280%2C%5Cmathbf%7Bn%7D%5Ccdot%5Comega_i%29%5C%2Cd%5Comega_i%3D%5Cfrac%7B%5Crho%7D%7B%5Cpi%7DE)
+
+<!-- L_o(\omega_o)=\int_{\Omega^+}\frac{\rho}{\pi}L_i(\omega_i)\max(0,\mathbf{n}\cdot\omega_i)\,d\omega_i=\frac{\rho}{\pi}E -->
+
+这里 *L_i* 和 *L_o* 是入射、出射辐亮度，单位 W·m⁻²·sr⁻¹；*ω_i* 是单位入射方向，*n* 是单位表面法线，*dω_i* 是立体角微元。点乘给出入射角余弦，积分得到表面接收的辐照度 *E*，单位 W·m⁻²。公式假设没有自发光，材质是纯漫反射，并且出射方向在表面正面。
+
+对于一束方向固定的光，若已知垂直于光束的平面所接收的辐照度 *E*<sub>⊥</sub>，先按余弦投影到当前表面，就得到下面的特例。光照方向 **l** 从表面指向光源，帽子表示将向量归一化：
+
+![lambertian-beam](https://latex.codecogs.com/svg.latex?E%3DE_%7B%5Cperp%7D%5Cmax%280%2C%5Cwidehat%7B%5Cmathbf%7Bn%7D%7D%5Ccdot%5Cwidehat%7B%5Cmathbf%7Bl%7D%7D%29%2C%5Cqquad%20L_o%3D%5Cfrac%7B%5Crho%7D%7B%5Cpi%7DE_%7B%5Cperp%7D%5Cmax%280%2C%5Cwidehat%7B%5Cmathbf%7Bn%7D%7D%5Ccdot%5Cwidehat%7B%5Cmathbf%7Bl%7D%7D%29)
+
+<!-- E=E_{\perp}\max(0,\widehat{\mathbf{n}}\cdot\widehat{\mathbf{l}}),\qquad L_o=\frac{\rho}{\pi}E_{\perp}\max(0,\widehat{\mathbf{n}}\cdot\widehat{\mathbf{l}}) -->
+
+```js
+// 在 math-as-code 目录下运行；完整实现会检查输入并归一化向量。
+const { lambertianReflection } = require('./examples/notation.cjs')
+
+const reflectance = 0.5
+const irradiance = 10 // E_perp，单位 W/m²
+const normal = [0, 0, 1]
+const lightDirection = [0, 0, 1] // 从表面指向光源
+
+lambertianReflection(reflectance, irradiance, normal, lightDirection)
+//=> 5 / Math.PI，约 1.59155 W/(m²·sr)
+```
+
+这个数值使用一个线性颜色通道；对 RGB 可以逐通道计算。余弦已用于将光束辐照度投影到表面，不应再乘一次。背向光源时 `max(0, ...)` 给出 0；这里没有加入阴影、镜面反射、间接光、色调映射或显示器的颜色编码。这是对上述反射模型的一个明确特例，不是完整渲染器。
+
 ## 更多...
 
-喜欢这份指南？提出[更多的特性](https://github.com/Jam3/math-as-code/issues/1)的建议或给我们发Pull Request！
+喜欢这份指南？提出[更多的特性](https://github.com/alikatgh/mathasacode/issues)的建议或给我们发Pull Request！
 
 ## 贡献
 
@@ -1066,7 +1432,9 @@ Interval.difference(b, a)
 
 ## License
 
-MIT, 详见 [LICENSE.md](http://github.com/Jam3/math-as-code/blob/master/LICENSE.md)。
+本交互版本基于 [Experience-Monks/math-as-code](https://github.com/Experience-Monks/math-as-code)；保留原作者署名和 MIT 许可证。
+
+MIT, 详见 [LICENSE.md](./LICENSE.md)。
 
 [1]: http://mimosa-pudica.net/improved-oren-nayar.html#images
 [2]: http://buzzard.ups.edu/courses/2007spring/projects/million-paper.pdf

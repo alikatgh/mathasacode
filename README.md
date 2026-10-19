@@ -7,7 +7,7 @@ This is a reference to ease developers into mathematical notation by showing com
 
 Motivation: Academic papers can be intimidating for self-taught game and graphics programmers. :) 
 
-This guide is not yet finished. If you see errors or want to contribute, please [open a ticket](https://github.com/Jam3/math-as-code/issues) or send a PR.
+This guide covers common notation for arithmetic, vectors, matrices, sets, logic and introductory calculus, ending with a worked graphics example. If you see errors or want to contribute, please [open a ticket](https://github.com/alikatgh/mathasacode/issues) or send a PR.
 
 > **Note**: For brevity, some code examples make use of [npm packages](https://www.npmjs.com/). You can refer to their GitHub repos for implementation details.
 
@@ -32,6 +32,7 @@ For simplicity, many of the code examples here operate on floating point values 
   - [dot product](#dot-product)
   - [cross product](#cross-product)
 - [sigma `Σ`](#sigma) - *summation*
+- [averages `1/n Σ`](#averages)
 - [capital Pi `Π`](#capital-pi) - *products of sequences*
 - [pipes `||`](#pipes)
   - [absolute value](#absolute-value)
@@ -48,10 +49,18 @@ For simplicity, many of the code examples here operate on floating point values 
 - [floor & ceiling `⌊` `⌉`](#floor--ceiling)
 - [arrows](#arrows)
   - [material implication `⇒` `→`](#material-implication)
-  - [equality `<` `≥` `≫`](#equality)
+  - [inequality `<` `≥` `≫`](#inequality)
   - [conjunction & disjunction `∧` `∨`](#conjunction--disjunction)
 - [logical negation `¬` `~` `!`](#logical-negation)
 - [intervals](#intervals)
+- [matrix multiplication](#matrix-multiplication)
+- [tensor product `⊗`](#tensor-product)
+- [delta `Δ` `δ`](#delta)
+- [derivatives `f′` `d/dx`](#derivatives)
+- [gradients and gradient descent `∇`](#gradients-and-gradient-descent)
+- [integrals `∫`](#integrals)
+- [worked graphics expression](#worked-graphics-expression)
+  - [running the examples](#running-the-examples)
 - [more...](#more)
 
 ## variable name conventions
@@ -161,10 +170,10 @@ console.log(math.multiply(a, b).toString())
 //=> '1 + 3i'
 ```
 
-The library also supports evaluating a string expression, so the above could be re-written as:
+The library also supports [evaluating a string expression](https://mathjs.org/docs/reference/functions/evaluate.html), so the above could be re-written as:
 
 ```js
-console.log(math.eval('(3 - i) * i').toString())
+console.log(math.evaluate('(3 - i) * i').toString())
 //=> '1 + 3i'
 ```
 
@@ -242,7 +251,7 @@ function multiplyScalar(a, scalar) {
 }
 ```
 
-Similarly, matrix multiplication typically does not use the dot `·` or cross symbol `×`. Matrix multiplication will be covered in a later section.
+Similarly, [matrix multiplication](#matrix-multiplication) typically does not use the dot `·` or cross symbol `×`.
 
 #### dot product
 
@@ -371,6 +380,27 @@ for (var i = 1; i <= 2; i++) {
 ```
 
 Here, `sum` will be `135`.
+
+## averages
+
+A factor `1/n` in front of a [sum](#sigma) turns the total into an *arithmetic mean*: add the *n* terms, then divide by their count. Here *n* must be a positive integer; the mean of an empty list is undefined.
+
+![arithmetic-mean](https://latex.codecogs.com/svg.latex?%5Cbegin%7Baligned%7D%5Cbar%7Bx%7D%26%3D%5Cfrac%7B1%7D%7Bn%7D%5Csum_%7Bi%3D1%7D%5E%7Bn%7Dx_i%2C%5Cqquad%20n%3E0%5C%5C%26%3D%5Cfrac%7Bx_1%2Bx_2%2B%5Ccdots%2Bx_n%7D%7Bn%7D%5Cend%7Baligned%7D)
+
+<!-- \begin{aligned}\bar{x}&=\frac{1}{n}\sum_{i=1}^{n}x_i,\qquad n>0\\&=\frac{x_1+x_2+\cdots+x_n}{n}\end{aligned} -->
+
+For the four values 2, 4, 6 and 8, the sum is 20, *n = 4*, and the mean is *20/4 = 5*. The subscript *i* selects a term; it does not multiply that term by *i*. Repeated observations still count separately.
+
+```js
+var { mean } = require('./examples/notation.cjs')
+
+var values = [2, 4, 6, 8]
+mean(values)
+//=> 5
+```
+
+The [checked implementation](./examples/notation.cjs) accepts 1 through 10,000 finite numbers and leaves the input unchanged. It scales the terms before summing to reduce overflow, but still uses floating-point arithmetic. See [OpenStax, Sigma Notation and Calculating the Arithmetic Mean](https://openstax.org/books/introductory-business-statistics-2e/pages/2-4-sigma-notation-and-calculating-the-arithmetic-mean).
+
 
 ## capital Pi
 
@@ -522,7 +552,7 @@ Other implementations:
 
 In set theory, the "element of" symbol `∈` and `∋` can be used to describe whether something is an element of a *set*. For example:
 
-![element1](http://latex.codecogs.com/svg.latex?A%3D%5Cleft%20%5C%7B3%2C9%2C14%7D%7B%20%5Cright%20%5C%7D%2C%203%20%5Cin%20A)
+![element1](http://latex.codecogs.com/svg.latex?A%3D%5Cleft%20%5C%7B3%2C9%2C14%20%5Cright%20%5C%7D%2C%203%20%5Cin%20A)
 
 <!-- A=\left \{3,9,14}{  \right \}, 3 \in A -->
 
@@ -548,13 +578,13 @@ A.has(3)
 
 The backwards `∋` is the same, but the order changes:
 
-![element2](http://latex.codecogs.com/svg.latex?A%3D%5Cleft%20%5C%7B3%2C9%2C14%7D%7B%20%5Cright%20%5C%7D%2C%20A%20%5Cni%203)
+![element2](http://latex.codecogs.com/svg.latex?A%3D%5Cleft%20%5C%7B3%2C9%2C14%20%5Cright%20%5C%7D%2C%20A%20%5Cni%203)
 
 <!-- A=\left \{3,9,14}{  \right \}, A \ni 3 -->
 
 You can also use the "not an element of" symbols `∉` and `∌` like so:
 
-![element3](http://latex.codecogs.com/svg.latex?A%3D%5Cleft%20%5C%7B3%2C9%2C14%7D%7B%20%5Cright%20%5C%7D%2C%206%20%5Cnotin%20A)
+![element3](http://latex.codecogs.com/svg.latex?A%3D%5Cleft%20%5C%7B3%2C9%2C14%20%5Cright%20%5C%7D%2C%206%20%5Cnotin%20A)
 
 <!-- A=\left \{3,9,14}{  \right \}, 6 \notin A -->
 
@@ -790,7 +820,7 @@ For example, if we take a 2D point *(x, y)* and rotate it, you might name the re
 
 In code, we typically just assign the variable a more descriptive name, like `transformedPosition`.
 
-For a mathematical [function](#function), the prime symbol often describes the *derivative* of that function. Derivatives will be explained in a future section. Let's take our earlier function:
+For a mathematical [function](#function), the prime symbol often describes the [*derivative*](#derivatives) of that function. Let's take our earlier function:
 
 ![function2](http://latex.codecogs.com/svg.latex?f%5Cleft%20%28x%20%5Cright%20%29%20%3D%20x%5E%7B2%7D)
 
@@ -873,7 +903,9 @@ The arrows can go in either direction `⇐` `⇒`, or both `⇔`. When *A ⇒ B*
 
 <!-- A \Leftrightarrow B -->
 
-#### equality
+<a id="equality"></a>
+
+#### inequality
 
 In math, the `<` `>` `≤` and `≥` are typically used in the same way we use them in code: *less than*, *greater than*, *less than or equal to* and *greater than or equal to*, respectively.
 
@@ -1058,9 +1090,272 @@ See:
 - [next-after](https://github.com/scijs/nextafter) 
 - [interval-arithmetic](https://github.com/maurizzzio/interval-arithmetic)
 
+## matrix multiplication
+
+A matrix has *rows* and *columns*. A matrix with *m* rows and *n* columns has shape *m × n*. For **C = AB**, the number of columns in **A** must equal the number of rows in **B**. The result has **A**'s row count and **B**'s column count.
+
+![matrix-multiplication](https://latex.codecogs.com/svg.latex?A%5Cin%5Cmathbb%7BR%7D%5E%7Bm%5Ctimes%20n%7D%2C%5Cquad%20B%5Cin%5Cmathbb%7BR%7D%5E%7Bn%5Ctimes%20p%7D%2C%5Cquad%20C%3DAB%2C%5Cquad%20c_%7Bij%7D%3D%5Csum_%7Bk%3D1%7D%5E%7Bn%7Da_%7Bik%7Db_%7Bkj%7D)
+
+<!-- A\in\mathbb{R}^{m\times n},\quad B\in\mathbb{R}^{n\times p},\quad C=AB,\quad c_{ij}=\sum_{k=1}^{n}a_{ik}b_{kj} -->
+
+Each result is the [dot product](#dot-product) of a row from **A** with a column from **B**. Here, mathematical indices start at 1; JavaScript array indices start at 0.
+
+These examples store each row as an array, so `A[i][j]` means row `i`, column `j`. This differs from the flat column-major array in the earlier [determinant](#determinant) example; storage must be agreed before copying matrix code.
+
+Using the full implementation in [examples/notation.cjs](./examples/notation.cjs):
+
+```js
+var { multiplyMatrices } = require('./examples/notation.cjs')
+
+var A = [ [1, 2, 3], [4, 5, 6] ] // 2 rows, 3 columns
+var B = [ [7, 8], [9, 10], [11, 12] ] // 3 rows, 2 columns
+
+multiplyMatrices(A, B)
+//=> [ [58, 64], [139, 154] ]
+// First entry: 1 * 7 + 2 * 9 + 3 * 11 = 58
+```
+
+Order matters: **AB** and **BA** generally differ, and one may be defined while the other is not. For transformations, this guide uses column vectors: **y = Ax** applies **A** to **x**. Then **ABx** applies **B** first and **A** second.
+
+## tensor product
+
+The `⊗` symbol often means *tensor product*. With real vectors in chosen bases, **u ⊗ v** can be represented by an *outer-product* array whose entry at row *i*, column *j* is *uᵢvⱼ*. It keeps both indices; a [dot product](#dot-product) instead sums over an index and produces a scalar.
+
+![vector-tensor-product](https://latex.codecogs.com/svg.latex?u%3D%5Cbegin%7Bbmatrix%7D1%5C%5C2%5Cend%7Bbmatrix%7D%2C%5Cquad%20v%3D%5Cbegin%7Bbmatrix%7D3%5C%5C4%5C%5C5%5Cend%7Bbmatrix%7D%2C%5Cquad%20%28u%5Cotimes%20v%29_%7Bij%7D%3Du_i%20v_j%2C%5Cquad%20uv%5E%7BT%7D%3D%5Cbegin%7Bbmatrix%7D3%264%265%5C%5C6%268%2610%5Cend%7Bbmatrix%7D)
+
+<!-- u=\begin{bmatrix}1\\2\end{bmatrix},\quad v=\begin{bmatrix}3\\4\\5\end{bmatrix},\quad (u\otimes v)_{ij}=u_i v_j,\quad uv^{T}=\begin{bmatrix}3&4&5\\6&8&10\end{bmatrix} -->
+
+The superscript `T` means *transpose*: the column **v** becomes a row. With the helper below, a column matrix and a row matrix give exactly this outer-product representation:
+
+```js
+var { kroneckerProduct } = require('./examples/notation.cjs')
+
+kroneckerProduct([ [1], [2] ], [ [3, 4, 5] ])
+//=> [ [3, 4, 5], [6, 8, 10] ]
+```
+
+For matrices representing linear maps, their tensor product is represented by the *Kronecker product*. Replace each entry *aᵢⱼ* of **A** with the whole block *aᵢⱼB*. An *m × n* matrix and a *p × q* matrix produce an *mp × nq* matrix:
+
+![matrix-kronecker-product](https://latex.codecogs.com/svg.latex?A%5Cotimes%20B%3D%5Cbegin%7Bbmatrix%7Da_%7B11%7DB%26%5Ccdots%26a_%7B1n%7DB%5C%5C%5Cvdots%26%5Cddots%26%5Cvdots%5C%5Ca_%7Bm1%7DB%26%5Ccdots%26a_%7Bmn%7DB%5Cend%7Bbmatrix%7D)
+
+<!-- A\otimes B=\begin{bmatrix}a_{11}B&\cdots&a_{1n}B\\\vdots&\ddots&\vdots\\a_{m1}B&\cdots&a_{mn}B\end{bmatrix} -->
+
+```js
+kroneckerProduct([ [1, 2], [3, 4] ], [ [0, 5], [6, 7] ])
+//=> [ [0, 5, 0, 10], [6, 7, 12, 14],
+//     [0, 15, 0, 20], [18, 21, 24, 28] ]
+```
+
+Unlike element-wise multiplication, every entry from the first matrix multiplies every entry from the second. Unlike matrix multiplication, no shared index is summed away. See [Alan Edelman's MIT notes, section 2.1](https://web.mit.edu/18.325/www/handouts/handout2.pdf) for the relationship between tensor products, coordinates and Kronecker products.
+
+## delta
+
+The uppercase `Δ` (*delta*) commonly describes a finite change. For example, `Δx` is a change in input and `Δf` is the resulting change in output:
+
+![finite-change](https://latex.codecogs.com/svg.latex?%5CDelta%20x%3Dx_%7B%5Cmathrm%7Bnew%7D%7D-x_%7B%5Cmathrm%7Bold%7D%7D%2C%5Cqquad%20%5CDelta%20f%3Df%28x_%7B%5Cmathrm%7Bnew%7D%7D%29-f%28x_%7B%5Cmathrm%7Bold%7D%7D%29)
+
+<!-- \Delta x=x_{\mathrm{new}}-x_{\mathrm{old}},\qquad \Delta f=f(x_{\mathrm{new}})-f(x_{\mathrm{old}}) -->
+
+```js
+function f (x) { return x * x }
+var oldX = 2
+var newX = 3
+var deltaX = newX - oldX // 1
+var deltaF = f(newX) - f(oldX) // 5
+```
+
+Lowercase `δ` has several uses. The *Kronecker delta* takes two integer indices and is 1 when they match, 0 otherwise:
+
+![kronecker-delta](https://latex.codecogs.com/svg.latex?%5Cdelta_%7Bij%7D%3D%5Cbegin%7Bcases%7D1%2C%26i%3Dj%5C%5C0%2C%26i%5Cne%20j%5Cend%7Bcases%7D)
+
+<!-- \delta_{ij}=\begin{cases}1,&i=j\\0,&i\ne j\end{cases} -->
+
+```js
+var { kroneckerDelta } = require('./examples/notation.cjs')
+kroneckerDelta(2, 2) //=> 1
+kroneckerDelta(2, 3) //=> 0
+```
+
+Thus the identity matrix has entries *Iᵢⱼ = δᵢⱼ*: it keeps the diagonal and clears the other entries.
+
+The *Dirac delta*, often written `δ(x - a)`, is different. It is a distribution, described by how it acts inside an integral. For a smooth test function *φ*, it selects the value at *a*:
+
+![dirac-delta](https://latex.codecogs.com/svg.latex?%5Cint_%7B-%5Cinfty%7D%5E%7B%5Cinfty%7D%5Cdelta%28x-a%29%5C%2C%5Cvarphi%28x%29%5C%2Cdx%3D%5Cvarphi%28a%29)
+
+<!-- \int_{-\infty}^{\infty}\delta(x-a)\,\varphi(x)\,dx=\varphi(a) -->
+
+After applying this identity, the result can be computed as `phi(a)`. A JavaScript function returning 1 only when `x === a` does **not** implement the Dirac delta: a single finite spike has zero integral over a real interval. See [NIST's definition and integral property](https://dlmf.nist.gov/1.17#i).
+
+## derivatives
+
+A derivative measures the local rate of change of a [function](#function). Common notations are *f′(x)*, *df/dx*, and *d/dx f(x)*. For a real function, the definition is a limit, when that limit exists:
+
+![derivative-definition](https://latex.codecogs.com/svg.latex?f%27%28x%29%3D%5Clim_%7Bh%5Cto0%7D%5Cfrac%7Bf%28x%2Bh%29-f%28x%29%7D%7Bh%7D)
+
+<!-- f'(x)=\lim_{h\to0}\frac{f(x+h)-f(x)}{h} -->
+
+The `lim` symbol asks what value the quotient approaches as the nonzero step *h* tends to zero. It does not mean evaluate the fraction with `h = 0`; that would divide by zero. `dx` is differential notation, rather than a fixed gap to a next real number.
+
+For *f(x) = x²*, expand the numerator and cancel *h* while *h ≠ 0*:
+
+![derivative-algebra](https://latex.codecogs.com/svg.latex?%5Cfrac%7B%28x%2Bh%29%5E2-x%5E2%7D%7Bh%7D%3D%5Cfrac%7B2xh%2Bh%5E2%7D%7Bh%7D%3D2x%2Bh%5Cquad%28h%5Cne0%29%2C%5Cqquad%20%5Clim_%7Bh%5Cto0%7D%282x%2Bh%29%3D2x)
+
+<!-- \frac{(x+h)^2-x^2}{h}=\frac{2xh+h^2}{h}=2x+h\quad(h\ne0),\qquad \lim_{h\to0}(2x+h)=2x -->
+
+So the derivative is the function `x => 2 * x`, as in the [prime](#prime) example. This symbolic result holds at every real *x*. See [OpenStax's definition of the derivative](https://openstax.org/books/calculus-volume-1/pages/3-1-defining-the-derivative).
+
+For an ordinary JavaScript function whose formula we have not simplified, we can estimate the derivative with a *centered finite difference*:
+
+![centered-difference](https://latex.codecogs.com/svg.latex?f%27%28x%29%5Capprox%5Cfrac%7Bf%28x%2Bh%29-f%28x-h%29%7D%7B2h%7D)
+
+<!-- f'(x)\approx\frac{f(x+h)-f(x-h)}{2h} -->
+
+```js
+var { derivative } = require('./examples/notation.cjs')
+derivative(x => x * x, 2, 0.00001)
+//=> approximately 4
+```
+
+This helper evaluates *f* twice; it does not perform symbolic differentiation or establish that a derivative exists. For example, a centered estimate of `Math.abs` at zero is 0 even though its left and right slopes disagree. A smaller step reduces approximation error only until floating-point cancellation becomes significant. Choose the step for the scale of the input and compare several choices.
+
+## gradients and gradient descent
+
+A [derivative](#derivatives) measures change with one input. For a differentiable scalar function *Q* of a weight vector **w**, the *gradient* `∇Q` (*nabla Q*) collects one partial derivative for each coordinate. A partial derivative changes one coordinate while holding the others fixed:
+
+![gradient-vector](https://latex.codecogs.com/svg.latex?%5Cnabla%20Q%28%5Cmathbf%7Bw%7D%29%3D%5Cbegin%7Bbmatrix%7D%5Cfrac%7B%5Cpartial%20Q%7D%7B%5Cpartial%20w_1%7D%5C%5C%5Cvdots%5C%5C%5Cfrac%7B%5Cpartial%20Q%7D%7B%5Cpartial%20w_d%7D%5Cend%7Bbmatrix%7D)
+
+<!-- \nabla Q(\mathbf{w})=\begin{bmatrix}\frac{\partial Q}{\partial w_1}\\\vdots\\\frac{\partial Q}{\partial w_d}\end{bmatrix} -->
+
+Suppose a finite data set has *n > 0* samples, each with a differentiable loss *Qᵢ(**w**)*. Define the total objective as their [mean](#averages). Differentiating this finite sum gives the average sample gradient, so one gradient-descent update can be written in either form:
+
+![gradient-descent-update](https://latex.codecogs.com/svg.latex?%5Cbegin%7Baligned%7DQ%28%5Cmathbf%7Bw%7D%29%26%3D%5Cfrac%7B1%7D%7Bn%7D%5Csum_%7Bi%3D1%7D%5E%7Bn%7DQ_i%28%5Cmathbf%7Bw%7D%29%5C%5C%5Cmathbf%7Bw%7D_%7B%5Cmathrm%7Bnew%7D%7D%26%3A%3D%5Cmathbf%7Bw%7D-%5Ceta%5Cnabla%20Q%28%5Cmathbf%7Bw%7D%29%5C%5C%26%3D%5Cmathbf%7Bw%7D-%5Cfrac%7B%5Ceta%7D%7Bn%7D%5Csum_%7Bi%3D1%7D%5E%7Bn%7D%5Cnabla%20Q_i%28%5Cmathbf%7Bw%7D%29%5Cend%7Baligned%7D)
+
+<!-- \begin{aligned}Q(\mathbf{w})&=\frac{1}{n}\sum_{i=1}^{n}Q_i(\mathbf{w})\\\mathbf{w}_{\mathrm{new}}&:=\mathbf{w}-\eta\nabla Q(\mathbf{w})\\&=\mathbf{w}-\frac{\eta}{n}\sum_{i=1}^{n}\nabla Q_i(\mathbf{w})\end{aligned} -->
+
+The positive scalar *η* (*eta*) is the *learning rate*. The minus sign moves against the gradient. The symbol `:=` assigns the new weights; every gradient component on the right is evaluated at the **same old vector**, before any coordinate is updated.
+
+Using all *n* samples makes this a **full-batch** update. For a mini-batch containing *m* samples, average just those *m* gradients using `1/m`, not `1/n`. Updating from one sampled observation at a time is the stochastic variant; the full-data update above is not stochastic gradient descent.
+
+For a concrete example, use linear predictions with a fixed squared loss. Each sample has a feature vector **xᵢ** and a target *yᵢ*. The prediction is the [dot product](#dot-product) **w · xᵢ**, the residual is prediction minus target, and the analytic sample gradient is residual times the feature vector:
+
+![squared-loss-gradient](https://latex.codecogs.com/svg.latex?%5Cbegin%7Baligned%7DQ_i%28%5Cmathbf%7Bw%7D%29%26%3D%5Ctfrac12%28%5Cmathbf%7Bw%7D%5Ccdot%5Cmathbf%7Bx%7D_i-y_i%29%5E2%5C%5C%5Cnabla%20Q_i%28%5Cmathbf%7Bw%7D%29%26%3D%28%5Cmathbf%7Bw%7D%5Ccdot%5Cmathbf%7Bx%7D_i-y_i%29%5Cmathbf%7Bx%7D_i%5Cend%7Baligned%7D)
+
+<!-- \begin{aligned}Q_i(\mathbf{w})&=\tfrac12(\mathbf{w}\cdot\mathbf{x}_i-y_i)^2\\\nabla Q_i(\mathbf{w})&=(\mathbf{w}\cdot\mathbf{x}_i-y_i)\mathbf{x}_i\end{aligned} -->
+
+Start at **w = [0, 0]** with two samples: **x₁ = [1, 0]**, *y₁ = 2*, and **x₂ = [0, 1]**, *y₂ = 4*. Their residuals are −2 and −4, giving sample gradients [−2, 0] and [0, −4]. With *η = 0.5*, the displayed full-batch formula becomes:
+
+![gradient-descent-example](https://latex.codecogs.com/svg.latex?%5Cbegin%7Baligned%7D%5Cnabla%20Q%28%5B0%2C0%5D%29%26%3D%5Ctfrac12%28%5B-2%2C0%5D%2B%5B0%2C-4%5D%29%5C%5C%26%3D%5B-1%2C-2%5D%5C%5C%5Cmathbf%7Bw%7D_%7B%5Cmathrm%7Bnew%7D%7D%26%3D%5B0%2C0%5D-0.5%5B-1%2C-2%5D%5C%5C%26%3D%5B0.5%2C1%5D%5Cend%7Baligned%7D)
+
+<!-- \begin{aligned}\nabla Q([0,0])&=\tfrac12([-2,0]+[0,-4])\\&=[-1,-2]\\\mathbf{w}_{\mathrm{new}}&=[0,0]-0.5[-1,-2]\\&=[0.5,1]\end{aligned} -->
+
+```js
+var { gradientDescentStep } = require('./examples/notation.cjs')
+
+var weights = [0, 0]
+var samples = [
+  { x: [1, 0], y: 2 },
+  { x: [0, 1], y: 4 }
+]
+var step = gradientDescentStep(weights, samples, 0.5)
+
+step.gradient   //=> [-1, -2]
+step.weights    //=> [0.5, 1]
+step.lossBefore //=> 5
+step.lossAfter  //=> 2.8125
+weights         //=> [0, 0] (unchanged)
+```
+
+The original sample losses are 2 and 8, whose mean is 5. After the step, the residuals are −1.5 and −3, giving losses 1.125 and 4.5 and a mean of 2.8125. A larger learning rate can overshoot: with the same starting weights and `η = 5`, the new mean loss is 11.25. A positive learning rate does not guarantee that every finite step reduces the loss.
+
+The helper performs **one** full-batch step for this specific analytic loss, without automatic differentiation or a training loop. It checks finite values, matching dimensions, 1–20 weights, at most 10,000 samples, and at most 100,000 feature components across the samples. It returns new arrays and rejects non-finite calculations. [Stanford CS229 notes, section 1](https://cs229.stanford.edu/notes_archive/cs229-notes-all/cs229-notes1.pdf) derive the squared-loss update, require simultaneous coordinate updates, and distinguish batch from stochastic gradient descent. Those notes use a summed objective; here the explicit `1/n` normalizes both the objective and its gradient.
+
+
+## integrals
+
+An *indefinite integral* asks for a family of antiderivatives. For example:
+
+![indefinite-integral](https://latex.codecogs.com/svg.latex?%5Cint%202x%5C%2Cdx%3Dx%5E2%2BC)
+
+<!-- \int 2x\,dx=x^2+C -->
+
+The `∫` is the integral sign; `2x` is the *integrand*; `dx` identifies the variable of integration. The arbitrary constant *C* matters because every function *x² + C* has derivative *2x*. Once we have found this formula symbolically, code can represent the family:
+
+```js
+function antiderivative (C) {
+  return function (x) { return x * x + C }
+}
+
+antiderivative(0)(3) //=> 9
+antiderivative(7)(3) //=> 16
+```
+
+A *definite integral* has lower and upper bounds and returns a number. For continuous *f* with antiderivative *F*, the fundamental theorem of calculus gives:
+
+![definite-integral](https://latex.codecogs.com/svg.latex?%5Cint_a%5Eb%20f%28x%29%5C%2Cdx%3DF%28b%29-F%28a%29%2C%5Cqquad%20%5Cint_0%5E1%20x%5E2%5C%2Cdx%3D%5Cleft%5B%5Cfrac%7Bx%5E3%7D%7B3%7D%5Cright%5D_0%5E1%3D%5Cfrac13)
+
+<!-- \int_a^b f(x)\,dx=F(b)-F(a),\qquad \int_0^1 x^2\,dx=\left[\frac{x^3}{3}\right]_0^1=\frac13 -->
+
+The result is signed accumulation, so contributions below the horizontal axis are negative and swapping the bounds reverses the sign. See [OpenStax on antiderivatives](https://openstax.org/books/calculus-volume-1/pages/4-10-antiderivatives) and [the fundamental theorem](https://openstax.org/books/calculus-volume-2/pages/1-3-the-fundamental-theorem-of-calculus).
+
+We can also approximate a definite integral without finding an antiderivative. The *composite trapezoidal rule* splits the interval into *n* pieces of width *h* and adds the areas of trapezoids:
+
+![trapezoidal-rule](https://latex.codecogs.com/svg.latex?h%3D%5Cfrac%7Bb-a%7D%7Bn%7D%2C%5Cqquad%20%5Cint_a%5Eb%20f%28x%29%5C%2Cdx%5Capprox%20h%5Cleft%5B%5Cfrac%7Bf%28a%29%7D2%2B%5Csum_%7Bi%3D1%7D%5E%7Bn-1%7Df%28a%2Bih%29%2B%5Cfrac%7Bf%28b%29%7D2%5Cright%5D)
+
+<!-- h=\frac{b-a}{n},\qquad \int_a^b f(x)\,dx\approx h\left[\frac{f(a)}2+\sum_{i=1}^{n-1}f(a+ih)+\frac{f(b)}2\right] -->
+
+```js
+var { integrateTrapezoid } = require('./examples/notation.cjs')
+integrateTrapezoid(x => x * x, 0, 1, 1000)
+//=> approximately 0.3333335 (the exact answer is 1/3)
+
+integrateTrapezoid(x => x * x, 1, 0, 1000)
+//=> approximately -0.3333335
+```
+
+The helper accepts 1 through 1,000,000 subdivisions and makes at most `n + 1` calls to *f*. It accepts finite endpoints and finite function values. Increasing *n* often improves the result for smooth functions, but this method has no automatic error guarantee and can miss narrow features, discontinuities or singularities. It computes a numerical estimate, not an indefinite integral.
+
+## worked graphics expression
+
+Let's combine the notation in a small rendering example. In [*Physically Based Rendering*, section 8.3](https://www.pbr-book.org/3ed-2018/Reflection_Models/Lambertian_Reflection), the Lambertian reflection model has the constant BRDF *fᵣ = R/π*. Here *R* is the fraction of incident energy reflected, between 0 and 1.
+
+The [irradiance integral in section 5.5](https://www.pbr-book.org/3ed-2018/Color_and_Radiometry/Working_with_Radiometric_Integrals) accumulates incident radiance over the upper hemisphere. Combining it with the Lambertian BRDF gives:
+
+![lambertian-radiance](https://latex.codecogs.com/svg.latex?E%3D%5Cint_%7B%5COmega%5E%2B%7DL_i%28%5Comega_i%29%5Cmax%280%2C%5Cmathbf%7Bn%7D%5Ccdot%5Comega_i%29%5C%2Cd%5Comega_i%2C%5Cqquad%20L_o%3D%5Cfrac%7BR%7D%7B%5Cpi%7DE)
+
+<!-- E=\int_{\Omega^+}L_i(\omega_i)\max(0,\mathbf{n}\cdot\omega_i)\,d\omega_i,\qquad L_o=\frac{R}{\pi}E -->
+
+Read the pieces in order: **n** is the unit surface normal; **ωᵢ** is a unit direction pointing toward incoming light; their dot product is the cosine of the incident angle. The integral adds all incoming directions, weighted by this cosine. *Lᵢ* and *Lₒ* are radiance in W/(m² sr), *E* is irradiance in W/m², and the BRDF has units of 1/sr.
+
+For one narrow beam, let *E⊥* be its irradiance measured on a plane perpendicular to the beam. Its contribution to the surface irradiance is *E⊥ max(0, n · ωᵢ)*. Substituting that contribution into the expression gives:
+
+![lambertian-beam](https://latex.codecogs.com/svg.latex?L_o%3D%5Cfrac%7BR%7D%7B%5Cpi%7DE_%7B%5Cperp%7D%5Cmax%280%2C%5Cmathbf%7Bn%7D%5Ccdot%5Comega_i%29)
+
+<!-- L_o=\frac{R}{\pi}E_{\perp}\max(0,\mathbf{n}\cdot\omega_i) -->
+
+```js
+var { lambertianReflection } = require('./examples/notation.cjs')
+
+var reflectance = 0.5
+var beamIrradiance = 2 * Math.PI // W/m² on a plane perpendicular to the beam
+var normal = [0, 0, 1]
+var lightDirection = [0, Math.sqrt(3), 1] // helper normalizes both vectors
+
+lambertianReflection(reflectance, beamIrradiance, normal, lightDirection)
+//=> approximately 0.5 W/(m² sr)
+```
+
+The normalized direction has a z component of 0.5, so the cosine is 0.5 and the output is `(0.5 / Math.PI) * (2 * Math.PI) * 0.5`. Light behind the surface contributes zero. This example uses one scalar or color channel and assumes the beam reaches the surface; visibility, emission and multiple scattering require additional terms.
+
+Be explicit about the input: the helper's `irradiance` argument means *E⊥* for a beam, before the surface cosine. If you already have surface irradiance *E* from the hemisphere integral, use `(reflectance / Math.PI) * E` directly so the cosine is counted once.
+
+### running the examples
+
+The eight helpers used in these sections are implemented in [examples/notation.cjs](./examples/notation.cjs), using only Node.js built-ins and ordinary JavaScript. Run the snippets from the repository root. The implementations reject malformed dimensions, non-finite numbers and unrepresentable numerical steps; they do not mutate their inputs. To keep the examples bounded, matrix inputs and outputs have at most 1,000,000 entries and matrix multiplication has at most 10,000,000 scalar multiply-add iterations.
+
+
 ## more...
 
-Like this guide? Suggest some [more features](https://github.com/Jam3/math-as-code/issues/1) or send us a Pull Request!
+Like this guide? Suggest some [more features](https://github.com/alikatgh/mathasacode/issues) or send us a Pull Request!
 
 ## Contributing
 
@@ -1068,7 +1363,9 @@ For details on how to contribute, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## License
 
-MIT, see [LICENSE.md](http://github.com/Jam3/math-as-code/blob/master/LICENSE.md) for details.
+This interactive edition is based on [Experience-Monks/math-as-code](https://github.com/Experience-Monks/math-as-code). Original authorship and the MIT license are retained.
+
+MIT, see [LICENSE.md](./LICENSE.md) for details.
 
 [1]: http://mimosa-pudica.net/improved-oren-nayar.html#images
 [2]: http://buzzard.ups.edu/courses/2007spring/projects/million-paper.pdf

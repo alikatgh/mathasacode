@@ -1,0 +1,24 @@
+<!doctype html><meta charset="utf-8"><title>Code execution sandbox</title>
+<script>
+'use strict';
+// This document has an opaque origin and can only create a networkless worker.
+addEventListener('message', function start(event) {
+  if (event.source !== parent || event.data?.type !== 'math-as-code-start' || !event.ports[0]) return;
+  removeEventListener('message', start);
+  const port = event.ports[0];
+  try {
+    port.postMessage({ type: 'status', text: 'Starting isolated worker…' });
+    const url = URL.createObjectURL(new Blob([event.data.workerSource], { type: 'text/javascript' }));
+    const worker = new Worker(url);
+    worker.onmessage = message => { URL.revokeObjectURL(url); port.postMessage(message.data); };
+    worker.onerror = error => port.postMessage({ type: 'error', error: error.message || 'The browser could not start the code worker.' });
+    worker.onmessageerror = () => port.postMessage({ type: 'error', error: 'The browser could not transfer runtime data to the worker.' });
+    worker.postMessage(event.data.payload, event.data.transfer || []);
+    port.onmessage = message => { if (message.data === 'stop') { worker.terminate(); port.close(); } };
+    port.start();
+  } catch (error) {
+    port.postMessage({ type: 'error', error: String(error.message || error) });
+  }
+});
+parent.postMessage({ type: 'math-as-code-ready' }, '*');
+</script>

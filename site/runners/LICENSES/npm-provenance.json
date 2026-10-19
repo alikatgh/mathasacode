@@ -1,0 +1,145 @@
+[
+  {
+    "file": "babel-runtime-7.29.10-LICENSE",
+    "url": "https://registry.npmjs.org/@babel/runtime/-/runtime-7.29.10.tgz",
+    "member": "package/LICENSE",
+    "bytes": 1106,
+    "sha256": "117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76"
+  },
+  {
+    "file": "bjorn3-browser_wasi_shim-0.4.2-LICENSE-APACHE",
+    "url": "https://registry.npmjs.org/@bjorn3/browser_wasi_shim/-/browser_wasi_shim-0.4.2.tgz",
+    "member": "package/LICENSE-APACHE",
+    "bytes": 11357,
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+  },
+  {
+    "file": "bjorn3-browser_wasi_shim-0.4.2-LICENSE-MIT",
+    "url": "https://registry.npmjs.org/@bjorn3/browser_wasi_shim/-/browser_wasi_shim-0.4.2.tgz",
+    "member": "package/LICENSE-MIT",
+    "bytes": 1023,
+    "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+  },
+  {
+    "file": "jitl-quickjs-wasmfile-release-sync-0.31.0-LICENSE",
+    "url": "https://registry.npmjs.org/@jitl/quickjs-wasmfile-release-sync/-/quickjs-wasmfile-release-sync-0.31.0.tgz",
+    "member": "package/LICENSE",
+    "bytes": 2263,
+    "sha256": "446a69ae534aa8612d8b16d3bfc670c5a5050597dca3ce9820441a60d5d04fbb"
+  },
+  {
+    "file": "complex.js-2.4.3-LICENSE",
+    "url": "https://registry.npmjs.org/complex.js/-/complex.js-2.4.3.tgz",
+    "member": "package/LICENSE",
+    "bytes": 1070,
+    "sha256": "ea6916b674c353de0e9b84b9c91e3b3f8c620a1000d6a65662961b8a67840f19"
+  },
+  {
+    "file": "decimal.js-10.6.0-LICENCE.md",
+    "url": "https://registry.npmjs.org/decimal.js/-/decimal.js-10.6.0.tgz",
+    "member": "package/LICENCE.md",
+    "bytes": 1104,
+    "sha256": "3108b546bcff5d346923a82f48b2d252ca722f9088076db6d145f6b67757ad6c"
+  },
+  {
+    "file": "double-bits-1.1.1-LICENSE",
+    "url": "https://registry.npmjs.org/double-bits/-/double-bits-1.1.1.tgz",
+    "member": "package/LICENSE",
+    "bytes": 1082,
+    "sha256": "e67aed7df22dc8031e4fcf5338fe91cb33e3817e5c58a99a2a2802eea9069791"
+  },
+  {
+    "file": "escape-latex-1.2.0-LICENSE.md",
+    "url": "https://registry.npmjs.org/escape-latex/-/escape-latex-1.2.0.tgz",
+    "member": "package/LICENSE.md",
+    "bytes": 1052,
+    "sha256": "8672a18c18ded3d723172d9af1b6b99fce4882b4518dfbb80c9a97da9abb7ccb"
+  },
+  {
+    "file": "fraction.js-5.3.4-LICENSE",
+    "url": "https://registry.npmjs.org/fraction.js/-/fraction.js-5.3.4.tgz",
+    "member": "package/LICENSE",
+    "bytes": 1070,
+    "sha256": "ea6916b674c353de0e9b84b9c91e3b3f8c620a1000d6a65662961b8a67840f19"
+  },
+  {
+    "file": "gl-mat2-1.0.1-LICENSE.md",
+    "url": "https://registry.npmjs.org/gl-mat2/-/gl-mat2-1.0.1.tgz",
+    "member": "package/LICENSE.md",
+    "bytes": 895,
+    "sha256": "ecd139db3623382b6b3bf5269e0053e4cf582b4476f9429d66c8e65073465538"
+  },
+  {
+    "file": "interval-arithmetic-1.1.3-LICENSE",
+    "url": "https://registry.npmjs.org/interval-arithmetic/-/interval-arithmetic-1.1.3.tgz",
+    "member": "package/LICENSE",
+    "bytes": 1338,
+    "sha256": "c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566"
+  },
+  {
+    "file": "mathjs-15.2.0-LICENSE",
+    "url": "https://registry.npmjs.org/mathjs/-/mathjs-15.2.0.tgz",
+    "member": "package/LICENSE",
+    "bytes": 10172,
+    "sha256": "3b0f65a9308588e12b619b2f05c788b4a5f41220006ce563b826b0feb489fd26"
+  },
+  {
+    "file": "mathjs-15.2.0-NOTICE",
+    "url": "https://registry.npmjs.org/mathjs/-/mathjs-15.2.0.tgz",
+    "member": "package/NOTICE",
+    "bytes": 629,
+    "sha256": "40e0c8aac7a769ef524e089b8ef75f81325ab7deca50def443b9b20d425e65b5"
+  },
+  {
+    "file": "nextafter-1.0.0-LICENSE",
+    "url": "https://registry.npmjs.org/nextafter/-/nextafter-1.0.0.tgz",
+    "member": "package/LICENSE",
+    "bytes": 1082,
+    "sha256": "e67aed7df22dc8031e4fcf5338fe91cb33e3817e5c58a99a2a2802eea9069791"
+  },
+  {
+    "file": "quickjs-emscripten-0.31.0-LICENSE",
+    "url": "https://registry.npmjs.org/quickjs-emscripten/-/quickjs-emscripten-0.31.0.tgz",
+    "member": "package/LICENSE",
+    "bytes": 1102,
+    "sha256": "3c6040aa318612a234cc951609b640c0c63d85ae5a98a9330d3116f1553a79db"
+  },
+  {
+    "file": "tiny-emitter-2.1.0-LICENSE",
+    "url": "https://registry.npmjs.org/tiny-emitter/-/tiny-emitter-2.1.0.tgz",
+    "member": "package/LICENSE",
+    "bytes": 1080,
+    "sha256": "aada4c7da6a5be46beadf9d4f40d7dba9e222e57180d46289b2bb9112e65daae"
+  },
+  {
+    "file": "typed-function-4.2.2-LICENSE",
+    "url": "https://registry.npmjs.org/typed-function/-/typed-function-4.2.2.tgz",
+    "member": "package/LICENSE",
+    "bytes": 1083,
+    "sha256": "0efa8c81fc2a1e8c668d49cdc60e48e9f2affdb3ee736462ace669ffe44a5dcf"
+  },
+  {
+    "file": "seedrandom-3.0.5-seedrandom-NOTICE.txt",
+    "url": "https://registry.npmjs.org/seedrandom/-/seedrandom-3.0.5.tgz",
+    "member": "package/seedrandom.js",
+    "excerpt": "complete leading notice block",
+    "bytes": 1057,
+    "sha256": "35239de2e7f05b0ae7dd0f521f21cfb4045898973091b9331e1a044a3cf01e3b"
+  },
+  {
+    "file": "seedrandom-3.0.5-alea-NOTICE.txt",
+    "url": "https://registry.npmjs.org/seedrandom/-/seedrandom-3.0.5.tgz",
+    "member": "package/lib/alea.js",
+    "excerpt": "complete leading notice block",
+    "bytes": 1375,
+    "sha256": "2f8bcf752182b910250b2240f3072ce0a5282f84d7e95880f06e977571dcf55e"
+  },
+  {
+    "file": "javascript-natural-sort-0.7.1-naturalSort-NOTICE.txt",
+    "url": "https://registry.npmjs.org/javascript-natural-sort/-/javascript-natural-sort-0.7.1.tgz",
+    "member": "package/naturalSort.js",
+    "excerpt": "complete leading notice block",
+    "bytes": 155,
+    "sha256": "82e479938946b8349bb8c077b46fb1da86678ffdb565f2bd2aed058364675673"
+  }
+]

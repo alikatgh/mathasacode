@@ -4,3 +4,15 @@ node_modules
 .DS_Store
 bundle.js
 test.js
+dist/
+releases/
+.wrangler/
+__pycache__/
+.env*
+!.env.schema
+secrets.*
+credentials.*
+*.pem
+*.key
+*.p12
+*.pfx

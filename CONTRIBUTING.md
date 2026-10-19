@@ -1,10 +1,14 @@
 ## Contributing
 
+### Local learning app
+
+The local edition includes a section sidebar, live examples, exercises, and progress saved in the browser. See [run and development instructions](./docs/run-locally.md) for `npm start`, builds, and tests. Keep the JavaScript, Python, and Chinese guides aligned when adding a topic.
+
 ### Issues
 
 If you see errors in the math, problems in the wording/language, or issues with how a symbol/equation translates into code, please create an issue.
 
-Please [search existing issues](https://github.com/Jam3/math-as-code/issues) before posting a new one.
+Please [search existing issues](https://github.com/alikatgh/mathasacode/issues) before posting a new one.
 
 ### Pull Requests
 

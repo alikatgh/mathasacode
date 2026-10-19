@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "files": [
+    {
+      "language": "python",
+      "name": "pyodide.js",
+      "path": "pyodide/pyodide.js",
+      "url": "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js",
+      "bytes": 14913,
+      "sha256": "b4cb23a53aba19c221659b9fb40a2f18281d685691dc06647fb0afd0681baf98",
+      "retainedUnused": true
+    },
+    {
+      "language": "python",
+      "name": "pyodide.asm.js",
+      "path": "pyodide/pyodide.asm.js",
+      "url": "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.asm.js",
+      "bytes": 1255688,
+      "sha256": "6b4c90de5b7172873f04f21884d0e9d2274e305fe32116558fe3e4fbe3618d51",
+      "retainedUnused": true
+    },
+    {
+      "language": "python",
+      "name": "pyodide.asm.wasm",
+      "path": "pyodide/pyodide.asm.wasm",
+      "url": "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.asm.wasm",
+      "bytes": 10105545,
+      "sha256": "a50dd1843f805a0b7c45b61037ee0d7b26dfe85efe0e18ef95a34ad24e401f5f",
+      "retainedUnused": true
+    },
+    {
+      "language": "python",
+      "name": "python_stdlib.zip",
+      "path": "pyodide/python_stdlib.zip",
+      "url": "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/python_stdlib.zip",
+      "bytes": 2360737,
+      "sha256": "16611534726e5d8ac2bd8f926410b2dcb8d6f49aa24913463533b457a2115c16",
+      "retainedUnused": true
+    },
+    {
+      "language": "python",
+      "name": "pyodide-lock.json",
+      "path": "pyodide/pyodide-lock.json",
+      "url": "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide-lock.json",
+      "bytes": 112205,
+      "sha256": "9c45b916001a750f4102fc287494f3eab215909c7535c626a20db80fd6333e2c",
+      "retainedUnused": true
+    },
+    {
+      "language": "c",
+      "name": "shared.js",
+      "path": "clang/shared.js",
+      "url": "https://binji.github.io/wasm-clang/shared.js",
+      "bytes": 23973,
+      "sha256": "4de0be862bda1a7571c1f0632abe3c62c47a56e734cc6b703155805a4b160b1c"
+    },
+    {
+      "language": "c",
+      "name": "clang",
+      "path": "clang/clang",
+      "url": "https://binji.github.io/wasm-clang/clang",
+      "bytes": 31214472,
+      "sha256": "2a466f0e990329d3230b869d04fc20803eae96a7feb3a3f6c93e25a77b8aed1d"
+    },
+    {
+      "language": "c",
+      "name": "lld",
+      "path": "clang/lld",
+      "url": "https://binji.github.io/wasm-clang/lld",
+      "bytes": 19490094,
+      "sha256": "36419ed202011765222098d7701218378b67f634d50f0a4625059ae2c9860f48"
+    },
+    {
+      "language": "c",
+      "name": "memfs",
+      "path": "clang/memfs",
+      "url": "https://binji.github.io/wasm-clang/memfs",
+      "bytes": 345442,
+      "sha256": "2c72ee42bd9430029dda8c6bafc9f37143f6fe88d5f1ea950a70259ab748bcfe"
+    },
+    {
+      "language": "c",
+      "name": "sysroot.tar",
+      "path": "clang/sysroot.tar",
+      "url": "https://binji.github.io/wasm-clang/sysroot.tar",
+      "bytes": 9297920,
+      "sha256": "2435a7b549af30c2be7ec249c405bc2e911ab0c6003012f0909ec3c131bff867"
+    },
+    {
+      "language": "python",
+      "name": "python.wasm",
+      "path": "python-wasi/bin/python-3.12.0.wasm",
+      "url": "https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python/3.12.0%2B20231211-040d5a6/python-3.12.0-wasi-sdk-20.0.tar.gz",
+      "bytes": 21010919,
+      "sha256": "5ce0cbeb843e6e5abf2d50c7158002e8333c26a40fbe27a7a52e66ee48cf64a8",
+      "archiveSha256": "6c1cddbb69ae09e87eee2906bdc70539bff5f2969818a6f8457d4e6a6eb67d4d"
+    },
+    {
+      "language": "python",
+      "name": "python312.zip",
+      "path": "python-wasi/usr/local/lib/python312.zip",
+      "url": "https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python/3.12.0%2B20231211-040d5a6/python-3.12.0-wasi-sdk-20.0.tar.gz",
+      "bytes": 3598015,
+      "sha256": "74130c400ba5b818bf58bfc2f41fc075f4350cbb13e53099c84e9c0494ec5444",
+      "archiveSha256": "6c1cddbb69ae09e87eee2906bdc70539bff5f2969818a6f8457d4e6a6eb67d4d"
+    },
+    {
+      "language": "python",
+      "name": "os.py",
+      "path": "python-wasi/usr/local/lib/python3.12/os.py",
+      "url": "https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python/3.12.0%2B20231211-040d5a6/python-3.12.0-wasi-sdk-20.0.tar.gz",
+      "bytes": 39760,
+      "sha256": "e36b0a6d4feefa0ec1f15b84abd87f61da6f5db434586467869ff0e5f5e1dc24",
+      "archiveSha256": "6c1cddbb69ae09e87eee2906bdc70539bff5f2969818a6f8457d4e6a6eb67d4d"
+    }
+  ]
+}
