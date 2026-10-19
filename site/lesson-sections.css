@@ -17,10 +17,9 @@
   --lab-surface: #fff6e4;
   --lab-foreground: #503615;
   --lab-muted: #78552d;
-  --lab-border: #e4c389;
-  --lab-rule: #c48725;
+  --lab-border: #dedbd5;
   --lab-control: #fffdfa;
-  --lab-control-border: #b69a6b;
+  --lab-control-border: #c9c8c3;
   --lab-output: #f3e5c8;
   --lab-accent: #86530a;
   --lab-accent-foreground: #fffdf7;
@@ -36,8 +35,7 @@
   --input: var(--lab-control-border);
   --accent: var(--lab-hover);
   --accent-foreground: var(--lab-foreground);
-  border: 1px solid var(--lab-border);
-  border-left: 3px solid var(--lab-rule);
+  border: 0;
   background: var(--lab-surface);
   color: var(--lab-foreground);
   box-shadow: none;
@@ -46,10 +44,9 @@
   --lab-surface: #30251c;
   --lab-foreground: #f1e1c7;
   --lab-muted: #d0b995;
-  --lab-border: #685037;
-  --lab-rule: #d69b3c;
+  --lab-border: #4a4743;
   --lab-control: #211c17;
-  --lab-control-border: #9a7d54;
+  --lab-control-border: #68645f;
   --lab-output: #40311f;
   --lab-accent: #edbd69;
   --lab-accent-foreground: #2c1e0b;
