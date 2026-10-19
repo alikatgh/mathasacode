@@ -63,25 +63,24 @@ function textMateHighlighting(language) {
 }
 
 const editorTheme = EditorView.theme({
-  '&': { color: 'var(--foreground)', backgroundColor: 'transparent', fontSize: '13.5px' },
-  '&.cm-focused': { outline: '2px solid var(--ring)', outlineOffset: '-2px' },
+  '&': { color: 'var(--code-foreground, #d4d4d4)', backgroundColor: 'var(--code-background, #1e1e1e)', fontSize: '13.5px' },
+  '&.cm-focused': { outline: '2px solid var(--code-focus, #007fd4)', outlineOffset: '-2px' },
   '.cm-scroller': {
     maxHeight: 'min(430px, 55dvh)', overflow: 'auto', overscrollBehavior: 'contain',
     fontFamily: 'var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace)', lineHeight: '1.8',
   },
-  '.cm-content': { padding: '12px 0', caretColor: 'var(--foreground)', minHeight: '1.8em' },
+  '.cm-content': { padding: '12px 0', caretColor: 'var(--code-cursor, #aeafad)', minHeight: '1.8em' },
   '.cm-line': { padding: '0 14px 0 4px' },
-  '.cm-gutters': { color: 'var(--muted-foreground)', backgroundColor: 'transparent', border: 'none', userSelect: 'none' },
+  '.cm-gutters': { color: 'var(--code-number, #858585)', backgroundColor: 'transparent', border: 'none', userSelect: 'none' },
   '.cm-gutterElement': { padding: '0 7px 0 10px' },
   '.cm-foldGutter .cm-gutterElement': { padding: '0 3px', cursor: 'pointer' },
-  '.cm-foldPlaceholder': { color: 'var(--muted-foreground)', backgroundColor: 'var(--muted)', border: 'none', padding: '0 4px' },
-  '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--foreground)' },
-  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': { backgroundColor: 'color-mix(in srgb, var(--primary) 20%, transparent)' },
+  '.cm-foldPlaceholder': { color: 'var(--code-muted, #a6a6a6)', backgroundColor: 'var(--code-hover, #2a2d2e)', border: 'none', padding: '0 4px' },
+  '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--code-cursor, #aeafad)' },
+  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': { backgroundColor: 'var(--code-selection, #264f78)' },
   '@media(max-width: 640px)': { '&': { fontSize: '13px' } },
-});
+}, { dark: true });
 const tokenTheme = EditorView.baseTheme({
-  '.editable-code__token': { color: 'var(--editor-token-light)' },
-  '&dark .editable-code__token': { color: 'var(--editor-token-dark)' },
+  '.editable-code__token': { color: 'var(--editor-token-dark)' },
 });
 
 /** Also usable without a DOM for exact-source/history verification. */
@@ -144,9 +143,6 @@ export const EditableCode = forwardRef(function EditableCode({
   useLayoutEffect(() => {
     const host = hostRef.current;
     if (!host) return undefined;
-    const root = host.ownerDocument.documentElement;
-    const themeConfig = new Compartment();
-    const getTheme = () => EditorView.theme({}, { dark: root.classList.contains('dark') });
     let folded = false;
     initialSource.current = latest.current.source;
     const view = new EditorView({
@@ -154,7 +150,6 @@ export const EditableCode = forwardRef(function EditableCode({
       state: createEditableState(latest.current.source, language, [
         wrapConfig.current.of(latest.current.wrap ? EditorView.lineWrapping : []),
         labelConfig.current.of(EditorView.contentAttributes.of({ 'aria-label': latest.current.ariaLabel, spellcheck: 'false', autocapitalize: 'off', autocorrect: 'off' })),
-        themeConfig.of(getTheme()),
         EditorView.updateListener.of(update => {
           if (update.docChanged && !silentChange.current) latest.current.onChange?.(update.state.doc.toString());
           const nextFolded = foldedRanges(update.state).size > 0;
@@ -167,11 +162,7 @@ export const EditableCode = forwardRef(function EditableCode({
     });
     viewRef.current = view;
     latest.current.onFoldChange?.(false);
-    const Observer = host.ownerDocument.defaultView?.MutationObserver;
-    const observer = Observer ? new Observer(() => view.dispatch({ effects: themeConfig.reconfigure(getTheme()) })) : null;
-    observer?.observe(root, { attributes: true, attributeFilter: ['class'] });
     return () => {
-      observer?.disconnect();
       viewRef.current = null;
       view.destroy();
     };

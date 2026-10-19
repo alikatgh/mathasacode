@@ -168,7 +168,7 @@ function Quiz({ entry, model }) {
   return <Accordion type="single" collapsible className="learn-quiz">
     <AccordionItem value="quiz">
       <AccordionTrigger className="learn-quiz__summary">{text.quiz}</AccordionTrigger>
-      <AccordionContent>
+      <AccordionContent className="h-auto">
         <form noValidate className="learn-quiz__form flex flex-col gap-4" onSubmit={check}>
           <p id={promptId} className="learn-quiz__prompt font-medium">{localizeLearning(activity.quiz.prompt, language)}</p>
           <RadioGroup className="learn-quiz__choices gap-3" name={`${panel.id}-answer`} value={answer} required

@@ -4,11 +4,6 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Marked } from 'marked';
 import GithubSlugger from 'github-slugger';
 import katex from 'katex';
-import hljs from 'highlight.js/lib/core';
-import javascript from 'highlight.js/lib/languages/javascript';
-import python from 'highlight.js/lib/languages/python';
-import c from 'highlight.js/lib/languages/c';
-import rust from 'highlight.js/lib/languages/rust';
 import { isEquationParagraph, pairComparisons } from './comparisons.mjs';
 import { getCodeExample, codeLanguages, languageLabels } from './code-examples.mjs';
 import { build as bundle } from 'esbuild';
@@ -33,10 +28,6 @@ export const documents = [
   { source: 'docs/blog.md', output: 'blog.html', title: 'Blog · math-as-code', lang: 'en', description: 'Notes on learning mathematical notation through code.' },
   { source: 'docs/changelog.md', output: 'changelog.html', title: 'Changelog · math-as-code', lang: 'en', description: 'Changes to this edition of Math as Code.' }
 ];
-hljs.registerLanguage('javascript', javascript);
-hljs.registerLanguage('python', python);
-hljs.registerLanguage('c', c);
-hljs.registerLanguage('rust', rust);
 
 const escape = text => String(text).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const decodeEntities = text => text.replace(/&(?:amp|lt|gt|quot|apos|space|plus|#\d+|#x[0-9a-f]+);/gi, entity => {
@@ -77,7 +68,9 @@ export function renderDocument(markdown, document = documents[0], { comparisons 
       highlighted.set(key, tokens.map((line, index) => ({ number: index + 1, text: text.split('\n')[index], tokens: line.map(token => ({ content: token.content, ...(token.htmlStyle?.color ? { color: token.htmlStyle.color, colorDark: token.htmlStyle['--shiki-dark'] } : {}) })) })));
     }
     const lines = JSON.stringify(highlighted.get(key)).replaceAll('<', '\\u003c');
-    return `<div class="code-fence"><pre><code${language ? ` class="language-${language}"` : ''}>${language ? hljs.highlight(text, { language }).value : escape(text)}</code></pre><script type="application/json" class="code-example__tokens">${lines}</script></div>\n`;
+    const fallback = highlighted.get(key).map(line => line.tokens.map(token => token.colorDark
+      ? `<span style="color:${escape(token.colorDark)}">${escape(token.content)}</span>` : escape(token.content)).join('')).join('\n');
+    return `<div class="code-fence"><pre><code${language ? ` class="language-${language}"` : ''}>${fallback}</code></pre><script type="application/json" class="code-example__tokens">${lines}</script></div>\n`;
   };
   const marked = new Marked({ gfm: true });
   marked.use({

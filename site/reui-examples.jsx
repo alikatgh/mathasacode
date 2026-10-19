@@ -137,7 +137,7 @@ function CodeOptions({ text, wrap, onWrapChange, editing, editor, editorFolded, 
   const trigger = useRef();
   return <DropdownMenu modal={false}><DropdownMenuTrigger asChild>
     <Button ref={trigger} type="button" variant="ghost" size="sm" aria-label={text.more} title={text.more}><MoreHorizontal size={14} aria-hidden="true" /></Button>
-  </DropdownMenuTrigger><DropdownMenuContent align="end" className="code-options"
+  </DropdownMenuTrigger><DropdownMenuContent align="end" className="code-options dark"
     onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus({ preventScroll: true }); }}>
     <DropdownMenuCheckboxItem checked={wrap} onCheckedChange={onWrapChange}>{text.wrap}</DropdownMenuCheckboxItem>
     <DropdownMenuItem disabled={!editing && !folding.regions.length} onSelect={() => {
@@ -275,11 +275,11 @@ function RunnableExample({ example, language, onLanguageChange, onLanguageMenuAn
   }
   return <>
     <p className="reui-example__help sr-only" id={helpId}>{text.help}</p>
-    <CodeBlock className="reui-example__code" code={source} language={language}
+    <CodeBlock className="reui-example__code dark" code={source} language={language}
       variant={example.element.closest('.comparison') ? 'ghost' : 'default'}
       lines={source === variant.source ? variant.lines : undefined}
       highlight={!editing && source !== variant.source && new TextEncoder().encode(source).length <= 65536}
-      themes={{ light: 'light-plus', dark: 'dark-plus' }} showLineNumbers foldable
+      themes={{ light: 'dark-plus', dark: 'dark-plus' }} showLineNumbers foldable
       label={text.example(languageLabel)} aria-describedby={helpId}
       wrap={wrap} onWrapChange={updateWrap} folded={folded} onFoldedChange={updateFolded}>
       <CodeBlockHeader className="reui-example__header">
@@ -298,7 +298,7 @@ function RunnableExample({ example, language, onLanguageChange, onLanguageMenuAn
                 if (languageTrigger.current?.getAttribute('aria-expanded') !== 'true') rememberOpeningAnchor();
               }}
               aria-label={`${text.languages}: ${languageLabel}`}><SelectValue /></SelectTrigger>
-            <SelectContent position="popper" align="start" className="reui-example__language-menu"
+            <SelectContent position="popper" align="start" className="reui-example__language-menu dark"
               onPointerDownOutside={() => { openingAnchor.current = null; }}
               onCloseAutoFocus={event => {
                 event.preventDefault();
