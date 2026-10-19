@@ -11,12 +11,12 @@ import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetDescri
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from './components/ui/sidebar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/ui/tooltip';
 import { Badge } from './components/reui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { initializeReader, decodeReaderHash } from './reader.mjs';
 import { prepareLearning, LearningPortals } from './learning.jsx';
 import { learningText } from './learning-model.mjs';
 import { prepareCodeExamples, CodeExamplePortals } from './reui-examples.jsx';
-import { conceptForTopic, renderConcept } from './concept-maps.mjs';
+import { conceptForTopic } from './concept-maps.mjs';
+import { ConceptMap } from './concept-map.jsx';
 import { prepareComparisons, ComparisonPortals } from './comparison-frames.jsx';
 
 const zh = document.documentElement.lang.startsWith('zh');
@@ -96,17 +96,6 @@ function TopicSidebar({ controller, snapshot, labels, model, searchRef, onNaviga
   </Sidebar>;
 }
 
-function ConceptMap({ kind }) {
-  const ref = useRef(null);
-  const [diagram, setDiagram] = useState(() => renderConcept(kind, zh ? 'zh' : 'en', 720));
-  useLayoutEffect(() => {
-    let previous = 0;
-    const update = () => { const width = Math.round(ref.current?.clientWidth || 720); if (width > 0 && width !== previous) { previous = width; setDiagram(renderConcept(kind, zh ? 'zh' : 'en', width)); } };
-    update(); const observer = new ResizeObserver(update); observer.observe(ref.current); return () => observer.disconnect();
-  }, [kind]);
-  return <Card className="concept-map mt-7 gap-3 bg-muted/30 shadow-none" ref={ref} aria-label={diagram.title}><CardHeader className="gap-1 pb-0"><span className="text-[10px] tracking-wider text-muted-foreground uppercase">{words.map}</span><CardTitle className="text-sm font-medium">{diagram.title}</CardTitle></CardHeader><CardContent><div style={{ height: Math.min(400, Math.max(128, diagram.height)) }} className="concept-map__drawing" role="img" aria-label={diagram.title} dangerouslySetInnerHTML={{ __html: diagram.svg }} /></CardContent></Card>;
-}
-
 function LessonContent({ controller }) {
   const host = useRef(null);
   useLayoutEffect(() => { host.current.append(controller.main); }, [controller]);
@@ -136,7 +125,7 @@ function LessonWorkspace({ controller, snapshot, navigationToggle }) {
       <div className="lesson-eyebrow flex items-center justify-between text-[10px] tracking-widest text-muted-foreground uppercase"><span className="flex items-center gap-2">{navigationToggle}<span>{guide ? words.reference : words.resources}</span></span><span className="font-mono">{String(snapshot.topicIndex + 1).padStart(2, '0')} / {controller.topics.length}</span></div>
       <div className="lesson-title-row"><h1 id="app-topic-title">{snapshot.topicIndex === 0 && guide ? 'Math as Code' : titleCase(topic.title)}</h1>{practice && <Button asChild variant="outline" size="sm"><a href={href(practice.id)}><FlaskConical className="size-3.5" />{words.practice}</a></Button>}</div>
     </header>
-    <ScrollArea ref={area} className="reader-scroll min-h-0" aria-label={titleCase(topic.title)}><div className="lesson-inner"><LessonContent controller={controller} />{concept && <ConceptMap key={concept} kind={concept} />}</div></ScrollArea>
+    <ScrollArea ref={area} className="reader-scroll min-h-0" aria-label={titleCase(topic.title)}><div className="lesson-inner"><LessonContent controller={controller} />{concept && <ConceptMap key={topic.id} kind={concept} topic={topic} language={zh ? 'zh' : 'en'} />}</div></ScrollArea>
     <footer className="lesson-navigation border-t bg-background" aria-label={zh ? '阅读导航' : 'Reading navigation'}><Button variant="outline" disabled={!hasPrevious} onClick={() => controller.navigate(href(controller.topics[snapshot.topicIndex - 1].id))} className="navigation-previous"><ArrowLeft className="size-4" /><span>{zh ? '上一主题' : 'Previous topic'}</span></Button><Button disabled={!hasNext} onClick={() => controller.navigate(href(controller.topics[snapshot.topicIndex + 1].id))} className="navigation-next"><span>{words.nextTopic}</span><ArrowRight className="size-4" /></Button></footer>
   </div>;
 }

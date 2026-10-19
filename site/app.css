@@ -189,9 +189,18 @@ body[data-reader="true"]:not(.app-ready) > :is(main, nav) { display: none; }
 .code-fence > pre { max-width: 100%; overflow: auto; background: var(--code); padding: 18px; font: 13px/1.75 var(--font-mono); }
 .code-example__tabs { display: flex; flex-wrap: wrap; gap: 6px; }
 .code-example__tab { padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); }
-.concept-map { --pele-bg: var(--muted); --pele-fg: var(--foreground); --pele-muted: var(--muted-foreground); --pele-line: var(--muted-foreground); --pele-surface: var(--card); --pele-surface-alt: var(--accent); --pele-border: var(--border); }
-.concept-map__drawing { display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.concept-map__drawing > svg { max-width: 100%; max-height: 100%; width: auto; height: auto; }
+.concept-map-slot { margin: 24px 0; min-width: 0; }
+.concept-map { --card-spacing: 18px; --pele-bg: var(--card); --pele-fg: var(--foreground); --pele-muted: var(--muted-foreground); --pele-line: var(--muted-foreground); --pele-surface: var(--accent); --pele-surface-alt: var(--muted); --pele-border: var(--border); --pele-accent: var(--primary); --pele-font: var(--font-sans); gap: 12px; min-width: 0; background: var(--card); }
+.concept-map__heading { gap: 4px; }
+.concept-map__eyebrow { color: var(--muted-foreground); font: 10px/1.4 var(--font-mono); letter-spacing: .07em; text-transform: uppercase; }
+.concept-map__title { font-size: 14px; font-weight: 500; line-height: 1.5; }
+.concept-map__body { min-width: 0; }
+.concept-map__viewport { min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.concept-map__viewport:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-radius: 3px; }
+.concept-map__drawing { margin-inline: auto; }
+.concept-map__drawing > svg { display: block; width: 100%; height: 100%; max-width: none; }
+.concept-map__takeaway { margin: 12px 0 0; color: var(--muted-foreground); font-size: 13px; line-height: 1.65; max-width: 78ch; }
+.concept-map__fallback { list-style: decimal; padding-left: 20px; font-size: 13px; line-height: 1.8; }
 .lesson-navigation { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 0 clamp(24px,4vw,60px); }
 .navigation-previous { justify-self: start; min-width: 120px; }
 .navigation-next { justify-self: end; min-width: 120px; }

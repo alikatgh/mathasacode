@@ -2,6 +2,8 @@
 
 ## 19 October 2026
 
+- Expanded the Pele concept maps into worked visual explanations across the math guide and every ML lesson, with small numerical examples and plain-language takeaways.
+- Kept diagrams in the continuous lesson flow before practice, with narrow-screen layouts and complete text alternatives.
 - Added 10 math topics: powers and logarithms, trigonometry, modular arithmetic, combinations, probability, expectation, variance, Bayes, correlation and entropy.
 - Added a separate ML and deep learning path that unpacks a neural network training objective, then trains a tiny network with real backpropagation.
 - Added four-language runnable examples and 14 new interactive practices while preserving existing progress.
