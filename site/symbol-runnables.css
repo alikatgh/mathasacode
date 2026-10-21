@@ -1,0 +1,21 @@
+.symbol-runnable { min-width: 0; margin: 0 0 12px; border: 1px solid var(--border); border-radius: 3px; }
+.symbol-runnable__toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.symbol-runnable__language { flex: 1; min-width: 74px; padding-right: 6px; color: var(--muted-foreground); font: 10px/1.6 var(--font-mono); }
+.symbol-runnable__toolbar button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 34px; padding: 5px 8px; border-radius: 3px; color: var(--foreground); font: 11px/1.5 var(--font-sans); cursor: pointer; }
+.symbol-runnable__toolbar button:hover { background: var(--accent); }
+.symbol-runnable__toolbar .symbol-runnable__run { color: var(--primary); font-weight: 600; }
+.symbol-runnable__toolbar button:disabled { opacity: .6; cursor: wait; }
+.symbol-runnable__editor { display: block; width: 100%; min-width: 0; min-height: 150px; max-height: 560px; resize: vertical; padding: 12px; border: 0; border-radius: 0; background: var(--surface); color: var(--surface-foreground); font: 12px/1.8 var(--font-mono); white-space: pre; overflow: auto; tab-size: 2; }
+.symbol-runnable__editor:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+.symbol-detail .symbol-runnable__help, .symbol-detail .symbol-runnable__status { max-width: none; margin: 0; padding: 7px 12px; color: var(--muted-foreground); font: 11px/1.65 var(--font-sans); overflow-wrap: anywhere; }
+.symbol-detail .symbol-runnable__help { border-top: 1px solid var(--border); }
+.symbol-detail .symbol-runnable__status { padding-top: 0; color: var(--foreground); }
+.symbol-runnable__output { min-width: 0; padding: 10px 12px; border-top: 1px solid var(--border); }
+.symbol-runnable__output > span { color: var(--muted-foreground); font: 10px/1.6 var(--font-mono); }
+.symbol-runnable__output pre { max-height: 320px; margin: 5px 0 0; overflow: auto; overflow-wrap: anywhere; white-space: pre-wrap; color: var(--foreground); font: 12px/1.65 var(--font-mono); }
+.symbol-runnable__output code { padding: 0; background: none; color: inherit; font: inherit; }
+.symbol-runnable__output[data-stale] > span { font-style: italic; }
+@media (max-width: 600px) {
+  .symbol-runnable__toolbar button { min-height: 42px; padding-inline: 9px; font-size: 12px; }
+  .symbol-runnable__editor { font-size: 16px; line-height: 1.6; }
+}

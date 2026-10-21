@@ -1,0 +1,71 @@
+.symbol-explorer {
+  container: symbol-explorer / inline-size; min-width: 0; margin: 20px 0 24px; padding-top: 20px; border-top: 1px solid var(--border);
+  --pele-bg: var(--background); --pele-fg: var(--foreground); --pele-muted: var(--muted-foreground);
+  --pele-line: var(--muted-foreground); --pele-border: var(--border); --pele-accent: var(--primary);
+  --pele-series-1: var(--primary); --pele-series-2: var(--muted-foreground); --pele-font: var(--font-sans);
+}
+.symbol-explorer__heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 20px; }
+.symbol-explorer__heading h4 { margin: 0; }
+.symbol-explorer__heading button { flex-shrink: 0; min-height: 36px; padding: 5px 8px; color: var(--primary); font: 11px/1.5 var(--font-sans); border-radius: var(--radius); }
+.symbol-explorer__heading button:hover { background: var(--accent); }
+.symbol-explorer .symbol-explorer__instructions { max-width: 72ch; margin: 5px 0 16px; color: var(--muted-foreground); font-size: 11px; }
+.symbol-explorer__layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(140px, 1fr); gap: 20px; align-items: center; }
+.symbol-explorer__visual { min-width: 0; }
+.symbol-explorer .symbol-explorer__chart { min-width: 0; }
+.symbol-explorer__chart svg { display: block; max-width: 100%; width: 100%; height: auto; overflow: visible; }
+.symbol-explorer__chart > div { max-width: 100%; }
+.symbol-explorer .symbol-explorer__chart figcaption { margin: 7px 0 0; color: var(--muted-foreground); font-size: 10px; line-height: 1.65; }
+.symbol-explorer__controls { display: flex; flex-direction: column; gap: 15px; min-width: 0; }
+.symbol-explorer__control { display: block; min-width: 0; font: 11px/1.5 var(--font-sans); }
+.symbol-explorer__control > span { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.symbol-explorer__control output { flex-shrink: 0; color: var(--foreground); font: 11px var(--font-mono); }
+.symbol-explorer__control input { display: block; width: 100%; height: 28px; margin: 3px 0 0; accent-color: var(--primary); cursor: pointer; }
+.symbol-explorer :is(button, input, summary):focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+.symbol-explorer__result { padding-top: 12px; border-top: 1px solid var(--border); }
+.symbol-explorer__result > span { display: block; margin-bottom: 5px; color: var(--muted-foreground); font: 10px/1.5 var(--font-sans); }
+.symbol-explorer__result > output { display: block; overflow-wrap: anywhere; font: 13px/1.7 var(--font-mono); }
+.symbol-explorer__formula { max-width: 100%; margin: 16px 0 9px; padding: 10px 0; overflow-x: auto; font: 13px/1.7 var(--font-mono); }
+.symbol-explorer__formula .katex { font-size: 1.05em; }
+.symbol-explorer .symbol-explorer__explanation { margin-bottom: 10px; font-size: 12px; }
+.symbol-explorer .symbol-explorer__link-status { margin-bottom: 12px; color: var(--muted-foreground); font-size: 11px; }
+.symbol-explorer__data { font: 11px/1.6 var(--font-sans); }
+.symbol-explorer__data summary { width: fit-content; min-height: 32px; padding: 5px 0; color: var(--primary); cursor: pointer; }
+.symbol-explorer__data table { width: 100%; margin: 5px 0 0; border-collapse: collapse; font: 11px/1.6 var(--font-mono); }
+.symbol-explorer__data :is(th, td) { padding: 6px 10px 6px 0; border-bottom: 1px solid var(--border); text-align: left; font-weight: 400; vertical-align: top; }
+.symbol-explorer__data th { width: 60%; }
+.symbol-explorer__data td { overflow-wrap: anywhere; }
+.symbol-explorer__axes { stroke: var(--muted-foreground); stroke-width: 1; }
+.symbol-explorer__axes text { fill: var(--muted-foreground); stroke: none; font: 12px var(--font-mono); }
+.symbol-explorer__grid { stroke: var(--border); }
+.symbol-explorer__vector { color: var(--primary); }
+.symbol-explorer__vector line { stroke: currentColor; stroke-width: 3; }
+.symbol-explorer__vector text { fill: currentColor; font: 15px var(--font-mono); }
+.symbol-explorer__vector--secondary { color: var(--foreground); }
+.symbol-explorer__vector--secondary line { stroke-dasharray: 7 5; }
+.symbol-explorer__handle { fill: var(--background); stroke: var(--primary); stroke-width: 3; cursor: grab; touch-action: none; }
+.symbol-explorer__handle--secondary { stroke: var(--foreground); stroke-dasharray: 3 2; }
+.symbol-explorer__handle:active { cursor: grabbing; }
+.symbol-explorer__handle:focus { outline: none; stroke-width: 5; filter: drop-shadow(0 0 2px var(--ring)); }
+.symbol-explorer__triangle { fill: none; stroke: var(--muted-foreground); stroke-dasharray: 3 4; stroke-width: 1.5; }
+.symbol-explorer__curve { fill: none; stroke: var(--muted-foreground); stroke-width: 2; }
+.symbol-explorer__tangent { fill: none; stroke: var(--primary); stroke-width: 3; }
+.symbol-explorer__secant { fill: none; stroke: var(--foreground); stroke-width: 2; stroke-dasharray: 7 5; }
+.symbol-explorer__nearby { fill: var(--foreground); }
+.symbol-explorer__point-label { fill: var(--foreground); font: 12px var(--font-mono); }
+.symbol-explorer__sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+@container symbol-explorer (max-width: 720px) {
+  .symbol-explorer__layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .symbol-explorer__controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; }
+  .symbol-explorer__result { grid-column: 1 / -1; }
+  .symbol-explorer__chart { max-width: 480px; margin-inline: auto; }
+}
+@media (max-width: 600px) {
+  .symbol-explorer__layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .symbol-explorer__controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .symbol-explorer__result { grid-column: 1 / -1; }
+  .symbol-explorer__heading button { min-height: 44px; }
+  .symbol-explorer__control input { height: 36px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .symbol-explorer *, .symbol-explorer *::before, .symbol-explorer *::after { animation: none !important; transition: none !important; }
+}
