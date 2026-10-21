@@ -4,7 +4,7 @@
   min-width: 0;
   color: var(--foreground);
 }
-.symbol-sheet__intro { max-width: 74ch; margin: 0 0 22px; font-size: 14px; line-height: 1.75; color: var(--muted-foreground); }
+.symbol-sheet__intro { margin: 0 0 22px; font-size: 14px; line-height: 1.75; color: var(--muted-foreground); }
 .symbol-sheet__tools { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 12px 24px; margin-bottom: 18px; }
 .symbol-sheet__search { flex: 1 1 280px; max-width: 480px; }
 .symbol-sheet__search-label { display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; }
@@ -73,7 +73,7 @@
 .symbol-detail__grid > section { min-width: 0; }
 .symbol-detail h4 { margin: 0 0 8px; font: 600 13px/1.5 var(--font-sans); }
 .symbol-detail p, .symbol-detail li { font: 13px/1.75 var(--font-sans); }
-.symbol-detail p { margin: 0 0 15px; max-width: 76ch; }
+.symbol-detail p { margin: 0 0 15px; }
 .symbol-detail__inline-math { display: inline-block; max-width: 100%; vertical-align: middle; overflow-x: auto; overflow-y: hidden; padding: 2px 3px 4px; margin: -2px -1px; }
 .symbol-detail__inline-math .katex { font-size: 1.05em; }
 .symbol-detail__inline-code { font-family: var(--font-mono); font-size: .92em; overflow-wrap: anywhere; }
@@ -95,7 +95,7 @@
 .symbol-detail__drawing { max-width: 100%; overflow-x: auto; }
 .symbol-detail__drawing > svg { display: block; margin: 8px auto 14px; }
 .symbol-detail .symbol-detail__narrow { display: none; }
-.symbol-detail figcaption { max-width: 88ch; color: var(--muted-foreground); font: 12px/1.75 var(--font-sans); }
+.symbol-detail figcaption { color: var(--muted-foreground); font: 12px/1.75 var(--font-sans); }
 .symbol-detail__data { margin-top: 12px; font: 12px/1.5 var(--font-sans); }
 .symbol-detail__data summary { width: fit-content; padding: 5px 0; color: var(--primary); cursor: pointer; }
 .symbol-detail__data table { margin: 10px 0 0; border-collapse: collapse; font: 11px/1.6 var(--font-mono); }

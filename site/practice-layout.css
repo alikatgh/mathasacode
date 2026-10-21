@@ -1,0 +1,50 @@
+.learn-calculator {
+  container: practice-calculator / inline-size;
+}
+
+.learn-calculator .learn-calculator__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 20px;
+  min-width: 0;
+}
+
+.learn-calculator :is(.learn-calculator__inputs, .learn-calculator__output) {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.learn-calculator .learn-fields {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  margin: 0;
+}
+
+.learn-calculator .learn-field[hidden] {
+  display: none;
+}
+
+.learn-calculator :is(.learn-expression, .learn-result-card, .learn-result, .learn-calculation-note, .learn-error) {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.learn-calculator :is(.learn-expression, .learn-error) {
+  margin: 0;
+}
+
+.learn-calculator .learn-expression code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@container practice-calculator (min-width: 32rem) {
+  .learn-calculator .learn-calculator__layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+  }
+}

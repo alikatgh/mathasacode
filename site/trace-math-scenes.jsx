@@ -1,5 +1,26 @@
-import React, { useId } from 'react';
+import React, { useEffect, useId, useMemo, useState } from 'react';
 import { MotionConfig, motion } from 'motion/react';
+
+let katexPromise;
+
+function SceneFormula({ scene }) {
+  const [katex, setKatex] = useState(null);
+  useEffect(() => {
+    let active = true;
+    katexPromise ??= import('katex');
+    katexPromise.then(module => { if (active) setKatex(module.default ?? module); }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+  const html = useMemo(() => {
+    if (!katex || !scene?.formulaTex) return null;
+    try { return katex.renderToString(scene.formulaTex, { displayMode: false, output: 'html', strict: 'error', trust: false, throwOnError: true }); }
+    catch { return null; }
+  }, [katex, scene?.formulaTex]);
+  if (!scene?.formulaText && !scene?.formulaTex) return null;
+  return <div className="trace-visualizer__formula" role="math" aria-label={scene.formulaText || scene.formulaTex}>
+    {html ? <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: html }} /> : <span>{scene.formulaText || scene.formulaTex}</span>}
+  </div>;
+}
 
 // Scene data comes from the bounded mathematical model, never from executable
 // source. The guards here also keep a malformed preview out of SVG geometry.
@@ -636,32 +657,36 @@ function FunctionScene({ data }) {
   const geometry = curveGeometry(data.points, { discontinuities: data.discontinuities });
   if (!geometry) return <><Notice y={145}>No sampled function values in this snapshot</Notice><Result>{finite(data.result) ? fmt(data.result) : ''}</Result></>;
   const { points, sx, sy, path, top, bottom, xDomain } = geometry;
-  const x = num(data.x);
-  const nearest = points.reduce((best, point) => Math.abs(point[0] - x) < Math.abs(best[0] - x) ? point : best, points[0]);
+  const hasInput = finite(data.x);
+  const x = hasInput ? data.x : null;
+  const nearest = hasInput ? points.reduce((best, point) => Math.abs(point[0] - x) < Math.abs(best[0] - x) ? point : best, points[0]) : null;
   const exactPoint = finite(data.result) && !['derivative', 'integral'].includes(data.operation);
-  const pointX = exactPoint ? x : nearest[0];
-  const y = exactPoint ? data.result : nearest[1];
-  const px = sx(pointX), py = sy(y);
+  const pointX = hasInput ? exactPoint ? x : nearest[0] : null;
+  const y = hasInput ? exactPoint ? data.result : nearest[1] : null;
+  const px = hasInput ? sx(pointX) : null, py = hasInput ? sy(y) : null;
   const secant = data.operation === 'derivative' && finite(data.a) && finite(data.b) && data.a !== data.b;
   const nearestTo = input => points.reduce((best, point) => Math.abs(point[0] - input) < Math.abs(best[0] - input) ? point : best, points[0]);
   const secantA = secant ? nearestTo(data.a) : null;
   const secantB = secant ? nearestTo(data.b) : null;
   const drawSecant = secant && secantA[0] === data.a && secantB[0] === data.b;
   const integral = data.operation === 'integral';
+  const drawIntegral = integral && (hasInput || finite(data.a) && finite(data.b));
   const low = finite(data.a) ? Math.min(data.a, num(data.b, x)) : xDomain[0];
   const high = finite(data.b) ? Math.max(num(data.a), data.b) : x;
   const area = points.filter(point => point[0] >= low && point[0] <= high);
   const tangentWidth = (xDomain[1] - xDomain[0]) * .18;
   return <>
     <PlotAxes geometry={geometry} />
-    {integral && area.length > 1 && <>
+    {drawIntegral && area.length > 1 && <>
       <path d={'M' + sx(area[0][0]) + ',' + sy(0) + area.map(point => 'L' + sx(point[0]) + ',' + sy(point[1])).join('') + 'L' + sx(area.at(-1)[0]) + ',' + sy(0) + 'Z'} fill={C} fillOpacity={.19} />
       {area.filter((_, index) => index % Math.max(1, Math.ceil(area.length / 16)) === 0).map((point, i) => <Line key={i} x1={sx(point[0])} y1={sy(0)} x2={sx(point[0])} y2={sy(point[1])} color={C} />)}
     </>}
     <path d={path} fill="none" stroke={A} strokeWidth={2.7} strokeLinejoin="round" />
     {points.filter(point => numbers(data.discontinuities).includes(point[0])).map((point, index) => <Dot key={'break' + index} x={sx(point[0])} y={sy(point[1])} color={A} radius={4} />)}
-    <motion.line initial={false} animate={{ x1: px, y1: sy(0), x2: px, y2: py }} stroke={B} strokeDasharray="4 4" />
-    <motion.line initial={false} animate={{ x1: sx(0), y1: py, x2: px, y2: py }} stroke={R} strokeDasharray="4 4" />
+    {hasInput && <>
+      <motion.line initial={false} animate={{ x1: px, y1: sy(0), x2: px, y2: py }} stroke={B} strokeDasharray="4 4" />
+      <motion.line initial={false} animate={{ x1: sx(0), y1: py, x2: px, y2: py }} stroke={R} strokeDasharray="4 4" />
+    </>}
     {drawSecant ? <>
       <Line x1={sx(secantA[0])} y1={sy(secantA[1])} x2={sx(secantB[0])} y2={sy(secantB[1])} color={C} width={2.4} />
       <Line x1={sx(secantA[0])} y1={sy(secantA[1])} x2={sx(secantB[0])} y2={sy(secantA[1])} color={B} dash="4 4" />
@@ -669,11 +694,13 @@ function FunctionScene({ data }) {
       <Dot x={sx(secantA[0])} y={sy(secantA[1])} color={C} radius={5} />
       <Dot x={sx(secantB[0])} y={sy(secantB[1])} color={C} radius={5} />
       <Text x={240} y={23} color={C}>secant: rise ÷ run</Text>
-    </> : !secant && data.operation === 'derivative' && finite(data.slope) && nearest[0] === x && <><Line x1={sx(x - tangentWidth)} y1={sy(y - data.slope * tangentWidth)} x2={sx(x + tangentWidth)} y2={sy(y + data.slope * tangentWidth)} color={C} width={2.2} /><Text x={Math.min(400, px + 55)} y={Math.max(top + 16, py - 22)} color={C}>slope {fmt(data.slope)}</Text></>}
-    {data.operation === 'limit' && <><Arrow x1={px - 45} y1={Math.min(bottom - 13, py + 28)} x2={px - 12} y2={Math.min(bottom - 13, py + 28)} color={B} width={2} /><Arrow x1={px + 45} y1={Math.min(bottom - 13, py + 28)} x2={px + 12} y2={Math.min(bottom - 13, py + 28)} color={B} width={2} /></>}
-    <Dot x={px} y={py} color={R} radius={6} hollow={data.operation === 'limit'} />
-    <Text x={clamp(px, 85, 395)} y={Math.max(top + 13, py - 13)} color={R}>({fmt(pointX)}, {fmt(y)})</Text>
-    {finite(data.result) || !['derivative', 'integral', 'limit'].includes(data.operation) ? <Result y={280}>{integral ? 'signed area = ' : data.operation === 'derivative' ? secant ? 'average rate = ' : 'instantaneous rate = ' : data.operation === 'limit' ? 'approaches ' : 'f(' + fmt(pointX) + ') = '}{fmt(data.result ?? y)}</Result> : <Notice>No numeric {data.operation === 'derivative' ? 'rate' : data.operation === 'integral' ? 'area' : 'limit'} was recorded</Notice>}
+    </> : hasInput && !secant && data.operation === 'derivative' && finite(data.slope) && nearest[0] === x && <><Line x1={sx(x - tangentWidth)} y1={sy(y - data.slope * tangentWidth)} x2={sx(x + tangentWidth)} y2={sy(y + data.slope * tangentWidth)} color={C} width={2.2} /><Text x={Math.min(400, px + 55)} y={Math.max(top + 16, py - 22)} color={C}>slope {fmt(data.slope)}</Text></>}
+    {hasInput && <>
+      {data.operation === 'limit' && <><Arrow x1={px - 45} y1={Math.min(bottom - 13, py + 28)} x2={px - 12} y2={Math.min(bottom - 13, py + 28)} color={B} width={2} /><Arrow x1={px + 45} y1={Math.min(bottom - 13, py + 28)} x2={px + 12} y2={Math.min(bottom - 13, py + 28)} color={B} width={2} /></>}
+      <Dot x={px} y={py} color={R} radius={6} hollow={data.operation === 'limit'} />
+      <Text x={clamp(px, 85, 395)} y={Math.max(top + 13, py - 13)} color={R}>({fmt(pointX)}, {fmt(y)})</Text>
+    </>}
+    {(hasInput || drawSecant || drawIntegral) && (finite(data.result) || !['derivative', 'integral', 'limit'].includes(data.operation) ? <Result y={280}>{integral ? 'signed area = ' : data.operation === 'derivative' ? secant ? 'average rate = ' : 'instantaneous rate = ' : data.operation === 'limit' ? 'approaches ' : 'f(' + fmt(pointX) + ') = '}{fmt(data.result ?? y)}</Result> : <Notice>No numeric {data.operation === 'derivative' ? 'rate' : data.operation === 'integral' ? 'area' : 'limit'} was recorded</Notice>)}
   </>;
 }
 
@@ -920,6 +947,18 @@ function Relation({ data }) {
   </>;
 }
 
+function SymbolicNorm() {
+  return <g className="math-scene__symbolic-norm">
+    <Line x1={70} y1={235} x2={390} y2={235} color={A} width={3} />
+    <Line x1={390} y1={235} x2={390} y2={55} color={B} width={3} />
+    <Line x1={70} y1={235} x2={390} y2={55} color={R} width={3} />
+    <path d="M372,235v-18h18" fill="none" stroke={MUTED} strokeWidth={1.5} />
+    <Text x={230} y={270} color={A}>|x|</Text>
+    <Text x={418} y={155} color={B}>|y|</Text>
+    <Text x={214} y={127} color={R}>ℓ(x,y)</Text>
+  </g>;
+}
+
 const renderers = {
   comparison: Comparison, arithmetic: Arithmetic, sequence: Sequence,
   vector: Vector, matrix: Matrix, sets: Sets, function: FunctionScene,
@@ -935,6 +974,10 @@ function hasNumericGeometry(kind, data) {
   if (kind === 'matrix') return Array.isArray(data.a?.[0]) && numbers(data.a[0]).length > 0;
   if (kind === 'combinatorics') return finite(data.n);
   if (kind === 'network') return numbers(data.inputs).length > 0 || numbers(data.outputs).length > 0;
+  if (kind === 'function') return curveGeometry(data.points) !== null;
+  if (kind === 'probability') return numbers(data.values).length > 0 || curveGeometry(data.points) !== null || ['conditional', 'bayes'].includes(data.operation) && finite(data.result);
+  if (kind === 'relation') return numbers(data.values).length > 0;
+  if (kind === 'collections') return data.arrays?.some(item => Array.isArray(item.values) && numbers(item.values.flat()).length > 0) || data.scalars?.some(item => finite(item.value));
   return true;
 }
 
@@ -950,15 +993,21 @@ export function MathTraceScene({ scene }) {
   const id = 'math-scene-' + useId().replace(/[^a-zA-Z0-9_-]/g, '');
   if (!scene || !scene.data) return null;
   const hasGeometry = hasNumericGeometry(scene.kind, scene.data);
-  const Renderer = hasGeometry ? renderers[scene.kind] || Collections : Relation;
-  const data = hasGeometry ? scene.data : { operation: '', values: [], labels: [scene.formulaText || scene.title || 'Mathematical rule'], result: undefined };
+  const symbolicNorm = !hasGeometry && scene.authored && scene.kind === 'vector' && scene.data.operation === 'norm' && scene.formulaTex === String.raw`\ell(x,y)=\sqrt{x^2+y^2}`;
+  const hasDrawing = hasGeometry || symbolicNorm;
+  const Renderer = symbolicNorm ? SymbolicNorm : renderers[scene.kind] || Collections;
+  const symbolicDescription = 'Symbolic right triangle. The legs have lengths |x| and |y|.';
+  const presentation = symbolicNorm ? 'symbolic' : hasGeometry ? 'numeric' : scene.kind === 'collections' ? 'recorded' : 'rule';
   return <MotionConfig reducedMotion="user" transition={{ duration: .38, ease: [.2, .7, .2, 1] }}>
-    <figure className={'math-scene math-scene--' + scene.kind} data-math-scene={scene.kind} data-scene-stage={scene.stage}>
-      <svg viewBox={'0 0 ' + W + ' ' + H} role="img" aria-labelledby={id + '-title ' + id + '-description'} focusable="false">
+    <figure className={'math-scene math-scene--' + scene.kind + ' math-scene--' + presentation} data-math-scene={scene.kind} data-scene-stage={scene.stage} data-scene-presentation={presentation} role={hasDrawing ? undefined : 'group'} aria-label={hasDrawing ? undefined : exactDescription(scene)}>
+      {hasDrawing && <svg viewBox={'0 0 ' + W + ' ' + H} role="img" aria-labelledby={id + '-title ' + id + '-description'} focusable="false">
         <title id={id + '-title'}>{scene.title || 'Mathematical state'}</title>
-        <desc id={id + '-description'}>{exactDescription(scene)}</desc>
-        <Renderer data={data} />
-      </svg>
+        <desc id={id + '-description'}>{symbolicNorm ? symbolicDescription + ' ' : ''}{exactDescription(scene)}</desc>
+        <Renderer data={scene.data} />
+      </svg>}
+      <SceneFormula scene={scene} />
+      {symbolicNorm && <figcaption className="math-scene__symbolic-caption">{symbolicDescription}</figcaption>}
+      {!hasDrawing && (!scene.formulaText && !scene.formulaTex || scene.kind === 'function') && <p className="math-scene__empty">{scene.kind === 'function' ? 'No sampled function values in this snapshot.' : 'No numeric values were recorded at this step.'}</p>}
     </figure>
   </MotionConfig>;
 }

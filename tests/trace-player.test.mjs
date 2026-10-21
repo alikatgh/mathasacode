@@ -3,11 +3,30 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { build } from 'esbuild';
 import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 const bundle = await build({
   entryPoints: [new URL('../site/trace-visualizer.jsx', import.meta.url).pathname],
   bundle: true, write: false, format: 'cjs', platform: 'node', packages: 'external',
   logLevel: 'silent',
+});
+
+test('the full visualizer renders each symbolic rule once, with a diagram only when it has geometry', () => {
+  const loaded = { exports: {} };
+  new Function('require', 'module', 'exports', bundle.outputFiles[0].text)(createRequire(import.meta.url), loaded, loaded.exports);
+  const frame = { line: 1, event: 'line', locals: {} };
+  const model = { status: 'success', step: 0, count: 1, frame, changes: [], collections: [], numericNames: [], warnings: [] };
+  const scene = { kind: 'vector', authored: true, title: 'Two coordinates determine a length', description: 'A symbolic mathematical rule.', formulaText: 'ℓ(x,y) = √(x²+y²)', formulaTex: String.raw`\ell(x,y)=\sqrt{x^2+y^2}`, data: { operation: 'norm', a: [], result: null } };
+  const render = state => renderToStaticMarkup(React.createElement(loaded.exports.TraceVisualizer, { model, scene: state }));
+  const symbolic = render(scene);
+  assert.equal((symbolic.match(/role="math"/g) || []).length, 1);
+  assert.equal((symbolic.match(/<svg\b/g) || []).length, 1);
+  assert.match(symbolic, /data-scene-presentation="symbolic"/);
+  assert.doesNotMatch(symbolic, /ℓ\(x,y\) = √…/);
+  const rule = render({ ...scene, kind: 'relation', formulaText: 'A complete symbolic rule', data: { operation: 'rule', values: [] } });
+  assert.equal((rule.match(/role="math"/g) || []).length, 1);
+  assert.doesNotMatch(rule, /<svg\b|A complete…/);
+  assert.match(rule, /A complete symbolic rule/);
 });
 
 // Exercise the production component's controls/effects with a deterministic

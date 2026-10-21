@@ -406,7 +406,11 @@ function sets(c) {
 function functionScene(c) {
   const sign = /sgn|signum/.test(c.source), piecewise = /if\s*\(?\s*x\s*>=?\s*1/.test(c.source);
   const x = c.number('x', 'k'), rule = sign ? value => Math.sign(value) : piecewise ? value => value >= 1 ? value - 1 : 0 : value => value * value;
-  if (/sqrt\s*\(\s*x\s*\*\s*x\s*\+\s*y\s*\*\s*y/.test(c.source)) return scene(c, 'vector', 'Two coordinates determine a length', 'ℓ(x,y) = √(x²+y²)', String.raw`\ell(x,y)=\sqrt{x^2+y^2}`, { operation: 'norm', a: x !== null && c.number('y') !== null ? [x, c.number('y')] : [], result: null });
+  if (/sqrt\s*\(\s*x\s*\*\s*x\s*\+\s*y\s*\*\s*y|\(\s*x\s*\*\s*x\s*\+\s*y\s*\*\s*y\s*\)\s*\.\s*sqrt\s*\(\s*\)/.test(c.source)) {
+    const y = x === null ? null : c.number('y');
+    const knownCoordinates = x !== null && y !== null;
+    return scene(c, 'vector', 'Two coordinates determine a length', 'ℓ(x,y) = √(x²+y²)', String.raw`\ell(x,y)=\sqrt{x^2+y^2}`, { operation: 'norm', a: knownCoordinates ? [x, y] : [], result: null }, knownCoordinates ? '' : 'The horizontal and vertical sides are |x| and |y|. The diagonal is the length returned by this rule.');
+  }
   return scene(c, 'function', sign ? 'The sign selects one of three levels' : piecewise ? 'The input selects its branch' : 'A rule maps each input to its output', sign ? 'sgn(x) ∈ {−1,0,1}' : piecewise ? 'f(x) = x−1 if x≥1; otherwise 0' : 'f(x) = x²', sign ? String.raw`\operatorname{sgn}(x)` : piecewise ? String.raw`f(x)=\begin{cases}x-1&x\ge1\\0&x<1\end{cases}` : 'f(x)=x^2', { operation: 'curve', x, points: sampled(rule, -3, 3, x), result: x === null ? null : rule(x), discontinuities: sign ? [0] : [] });
 }
 

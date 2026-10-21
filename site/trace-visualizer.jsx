@@ -7,26 +7,6 @@ import { mathTraceScene } from './trace-math-model.mjs';
 import { MathTraceScene } from './trace-math-scenes.jsx';
 
 register(xychart);
-let katexPromise;
-
-function SceneFormula({ scene }) {
-  const [katex, setKatex] = useState(null);
-  useEffect(() => {
-    let active = true;
-    katexPromise ??= import('katex');
-    katexPromise.then(module => { if (active) setKatex(module.default ?? module); }).catch(() => {});
-    return () => { active = false; };
-  }, []);
-  const html = useMemo(() => {
-    if (!katex || !scene?.formulaTex) return null;
-    try { return katex.renderToString(scene.formulaTex, { displayMode: false, output: 'html', strict: 'error', trust: false, throwOnError: true }); }
-    catch { return null; }
-  }, [katex, scene?.formulaTex]);
-  if (!scene?.formulaText && !scene?.formulaTex) return null;
-  return <div className="trace-visualizer__formula" role="math" aria-label={scene.formulaText || scene.formulaTex}>
-    {html ? <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: html }} /> : <span>{scene.formulaText || scene.formulaTex}</span>}
-  </div>;
-}
 
 function PeleGraphic({ source, label, prefix, kind }) {
   const element = useRef(null);
@@ -152,7 +132,6 @@ export function TraceVisualizer({ model, scene, onStep }) {
       {scene && <>
         <h5 className="trace-visualizer__scene-title">{scene.title}</h5>
         <MathTraceScene scene={scene} />
-        <SceneFormula scene={scene} />
         <p className="trace-visualizer__explanation">{scene.description}</p>
         {scene.provenance && <p className="trace-visualizer__provenance">{scene.provenance === 'recorded' ? 'Geometry calculated from recorded operands.' : scene.provenance === 'authored' ? 'Mathematical construction from the authored example.' : scene.provenance}</p>}
       </>}

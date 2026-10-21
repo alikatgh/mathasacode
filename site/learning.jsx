@@ -107,42 +107,48 @@ function Calculator({ activity, panelId, language }) {
       return { values: { ...previous.values, [field.key]: value }, badInputs };
     });
   };
-  return <form className="learn-calculator flex flex-col gap-5" noValidate onSubmit={event => event.preventDefault()}>
-    <div className="learn-fields grid gap-4 sm:grid-cols-2">
-      {activity.fields.map((field, index) => {
-        const id = `${panelId}-field-${index}`;
-        const active = calculated.activeKeys.has(field.key);
-        const invalid = Boolean(calculated.error && (!calculated.invalidKey || calculated.invalidKey === field.key));
-        const control = {
-          id, name: field.key, value: inputs.values[field.key], required: active, disabled: !active,
-          'aria-invalid': invalid || undefined, 'aria-describedby': invalid ? errorId : undefined,
-          className: 'learn-field__control', onChange: event => update(field, event),
-        };
-        return <div key={field.key} className="learn-field flex flex-col gap-2" hidden={!active}>
-          <Label className="learn-field__label" htmlFor={id}>{localizeLearning(field.label, language)}</Label>
-          {field.type === 'select' ? <NativeSelect {...control} className={`${control.className} w-full`}>
-            {(field.options ?? []).map(option => <NativeSelectOption key={option.value} value={option.value}>{localizeLearning(option.label, language)}</NativeSelectOption>)}
-          </NativeSelect> : <Input {...control} type={field.type === 'number' ? 'number' : 'text'}
-            step={field.type === 'number' ? field.step ?? 'any' : undefined}
-            min={field.min} max={field.max} maxLength={field.type === 'number' ? undefined : 4000}
-            spellCheck={false} autoComplete="off" />}
-        </div>;
-      })}
+  return <form className="learn-calculator" noValidate onSubmit={event => event.preventDefault()}>
+    <div className="learn-calculator__layout">
+      <div className="learn-calculator__inputs">
+        <div className="learn-fields">
+          {activity.fields.map((field, index) => {
+            const id = `${panelId}-field-${index}`;
+            const active = calculated.activeKeys.has(field.key);
+            const invalid = Boolean(calculated.error && (!calculated.invalidKey || calculated.invalidKey === field.key));
+            const control = {
+              id, name: field.key, value: inputs.values[field.key], required: active, disabled: !active,
+              'aria-invalid': invalid || undefined, 'aria-describedby': invalid ? errorId : undefined,
+              className: 'learn-field__control', onChange: event => update(field, event),
+            };
+            return <div key={field.key} className="learn-field flex flex-col gap-2" hidden={!active}>
+              <Label className="learn-field__label" htmlFor={id}>{localizeLearning(field.label, language)}</Label>
+              {field.type === 'select' ? <NativeSelect {...control} className={`${control.className} w-full`}>
+                {(field.options ?? []).map(option => <NativeSelectOption key={option.value} value={option.value}>{localizeLearning(option.label, language)}</NativeSelectOption>)}
+              </NativeSelect> : <Input {...control} type={field.type === 'number' ? 'number' : 'text'}
+                step={field.type === 'number' ? field.step ?? 'any' : undefined}
+                min={field.min} max={field.max} maxLength={field.type === 'number' ? undefined : 4000}
+                spellCheck={false} autoComplete="off" />}
+            </div>;
+          })}
+        </div>
+        {!calculated.error && calculated.expression && <p className="learn-expression"><code>{calculated.expression}</code></p>}
+      </div>
+      <div className="learn-calculator__output">
+        {calculated.error && <Alert id={errorId} variant="destructive" role="alert" className="learn-error">
+          <AlertDescription>{calculated.error}</AlertDescription>
+        </Alert>}
+        <Card className="learn-result-card bg-muted/40 shadow-none">
+          <CardContent className="flex flex-col gap-2 py-4">
+            <Label asChild><span className="learn-result-label" id={resultLabel}>{text.result}</span></Label>
+            <output className="learn-result break-words font-mono text-lg" aria-live="polite" aria-atomic="true" aria-labelledby={resultLabel}
+              htmlFor={activity.fields.map((_, index) => `${panelId}-field-${index}`).join(' ')}>
+              {calculated.error ? text.unavailable : calculated.result}
+            </output>
+            {!calculated.error && calculated.explanation && <p className="learn-calculation-note text-sm text-muted-foreground">{calculated.explanation}</p>}
+          </CardContent>
+        </Card>
+      </div>
     </div>
-    {calculated.error && <Alert id={errorId} variant="destructive" role="alert" className="learn-error">
-      <AlertDescription>{calculated.error}</AlertDescription>
-    </Alert>}
-    {!calculated.error && calculated.expression && <p className="learn-expression"><code>{calculated.expression}</code></p>}
-    <Card className="learn-result-card bg-muted/40 shadow-none">
-      <CardContent className="flex flex-col gap-2 py-4">
-        <Label asChild><span className="learn-result-label" id={resultLabel}>{text.result}</span></Label>
-        <output className="learn-result break-words font-mono text-lg" aria-live="polite" aria-atomic="true" aria-labelledby={resultLabel}
-          htmlFor={activity.fields.map((_, index) => `${panelId}-field-${index}`).join(' ')}>
-          {calculated.error ? text.unavailable : calculated.result}
-        </output>
-        {!calculated.error && calculated.explanation && <p className="learn-calculation-note text-sm text-muted-foreground">{calculated.explanation}</p>}
-      </CardContent>
-    </Card>
   </form>;
 }
 

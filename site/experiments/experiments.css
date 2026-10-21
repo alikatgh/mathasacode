@@ -13,7 +13,7 @@
 .experiment__heading { gap: 5px; }
 .experiment__eyebrow { color: var(--primary); font: 10px/1.5 var(--font-mono); text-transform: uppercase; letter-spacing: .07em; }
 .experiment__title { font-size: 17px; font-weight: 550; line-height: 1.4; }
-.experiment__description, .experiment__caption { max-width: 76ch; margin: 0; color: var(--muted-foreground); font-size: 13px; line-height: 1.65; }
+.experiment__description, .experiment__caption { margin: 0; color: var(--muted-foreground); font-size: 13px; line-height: 1.65; }
 .experiment__body { min-width: 0; }
 .experiment__workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(210px, .65fr); gap: 24px; align-items: center; }
 .experiment__plot { display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; border-radius: 5px; background: color-mix(in srgb, var(--muted) 32%, transparent); }

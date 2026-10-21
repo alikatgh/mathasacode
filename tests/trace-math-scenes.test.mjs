@@ -5,6 +5,9 @@ import { createRequire } from 'node:module';
 import { build } from 'esbuild';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { Marked } from 'marked';
+import { getCodeExample } from '../scripts/code-examples.mjs';
+import { mathTraceScene } from '../site/trace-math-model.mjs';
 
 // Compile only these renderer sources in memory. No site build, output file,
 // dependency install, browser, or executable user snippet is involved.
@@ -33,6 +36,76 @@ const fixtures = [
   scene('collections', { arrays: [{ name: 'v', values: [1, 2, 3] }], scalars: [{ name: 'n', value: 3 }], changed: ['v'] }),
   scene('relation', { operation: '≥', values: [2, 3], labels: ['a', 'b'], result: false }),
 ];
+
+async function definitionScene(locals = {}, edited = false, { id = 'en-35', language = 'javascript', path = 'README.md' } = {}) {
+  const sourceText = await readFile(new URL('../' + path, import.meta.url), 'utf8');
+  const entry = new Marked().lexer(sourceText).filter(token => token.type === 'code')
+    .map(token => getCodeExample(token.text, path)).find(example => example.id === id);
+  const example = { ...entry, element: { dataset: { codeExample: entry.id } },
+    variants: Object.fromEntries(Object.entries(entry.variants).map(([language, source]) => [language, { source }])) };
+  const source = example.variants[language].source + (edited ? '\n// edited example' : '');
+  const frame = { line: 1, event: 'line', locals };
+  return mathTraceScene({ example, source, language, model: { frame, frames: [frame], step: 0, sourceLine: source.split('\n')[0] } });
+}
+
+test('the authored length definition draws a readable symbolic triangle without inventing a call', async () => {
+  const state = await definitionScene();
+  assert.equal(state.exampleId, 'en-35');
+  assert.equal(state.provenance, 'authored');
+  assert.deepEqual(state.data.a, []);
+  const html = markup(state), svg = drawing(html);
+  assert.match(html, /data-scene-presentation="symbolic"/);
+  assert.match(svg, /\|x\|/);
+  assert.match(svg, /\|y\|/);
+  assert.match(svg, /ℓ\(x,y\)/);
+  assert.ok((svg.match(/<line\b/g) || []).length >= 3, 'the two legs and hypotenuse are drawn');
+  assert.match(html, /Symbolic right triangle/);
+  assert.doesNotMatch(svg, /…|>0<|length 0|No numeric length/);
+  assert.equal((html.match(/role="math"/g) || []).length, 1, 'the complete rule appears once');
+  assert.match(html, /ℓ\(x,y\) = √\(x²\+y²\)/);
+  assertSafeGeometry(html, 'symbolic length');
+});
+
+test('all four two-coordinate definitions share the symbolic triangle, while missing 3D norms retain their full rule', async () => {
+  for (const language of ['javascript', 'python', 'c', 'rust']) {
+    const twoCoordinates = await definitionScene({}, false, { language });
+    assert.equal(twoCoordinates.kind, 'vector', language);
+    assert.match(markup(twoCoordinates), /data-scene-presentation="symbolic"/, language);
+    for (const [id, path] of [['en-24', 'README.md'], ['py-26', 'PYTHON-README.md'], ['zh-24', 'README-zh.md']]) {
+      const threeCoordinates = await definitionScene({}, false, { id, path, language });
+      assert.equal(threeCoordinates.kind, 'vector', id + '/' + language);
+      assert.deepEqual(threeCoordinates.data.a, [], id + '/' + language);
+      const html = markup(threeCoordinates);
+      assert.doesNotMatch(html, /<svg|Symbolic right triangle|ℓ\(x,y\)/, id + '/' + language);
+      assert.match(html, /role="math"/, id + '/' + language);
+      assert.ok(html.includes(threeCoordinates.formulaText), id + '/' + language);
+    }
+  }
+});
+
+test('missing operands show one complete compact rule rather than a mostly empty SVG', () => {
+  for (const kind of ['comparison', 'arithmetic', 'sequence', 'vector', 'matrix', 'combinatorics', 'network', 'relation']) {
+    const state = scene(kind, { a: null, b: null, result: null, values: [], inputs: [], outputs: [] });
+    const html = markup(state);
+    assert.doesNotMatch(html, /<svg|…/, kind);
+    assert.match(html, /exact mathematical relation/, kind);
+    assert.equal((html.match(/role="math"/g) || []).length, 1, kind);
+  }
+});
+
+test('edited definitions retain the actual recorded fallback instead of acquiring authored symbolic geometry', async () => {
+  const empty = await definitionScene({}, true);
+  assert.equal(empty.kind, 'collections');
+  assert.equal(empty.authored, false);
+  assert.equal(empty.provenance, 'recorded');
+  const html = markup(empty);
+  assert.doesNotMatch(html, /<svg|ℓ|Symbolic right triangle/);
+  assert.match(html, /No numeric values were recorded at this step/);
+  const recorded = await definitionScene({ x: '3', y: '4' }, true);
+  assert.match(markup(recorded), /x = 3/);
+  assert.match(markup(recorded), /y = 4/);
+  assert.doesNotMatch(markup(recorded), /Symbolic right triangle/);
+});
 
 function assertSafeGeometry(html, label) {
   const svg = drawing(html);
@@ -210,6 +283,31 @@ test('a supplied discontinuity splits a function path instead of drawing a false
   const curve = [...html.matchAll(/<path d="([^"]+)"[^>]*stroke="var\(--math-a\)"/g)][0]?.[1];
   assert.ok(curve);
   assert.equal((curve.match(/M/g) || []).length, 3, 'left constant branch, isolated zero, right constant branch');
+});
+
+test('sampled function rules do not select an unrecorded input, while a real zero remains selected', () => {
+  for (const x of [null, undefined, NaN, Infinity, -Infinity]) {
+    const html = drawing(markup(scene('function', { operation: 'curve', x, result: null, points })));
+    assert.match(html, /<path[^>]*stroke="var\(--math-a\)"/, 'the authored curve remains visible');
+    assert.doesNotMatch(html, /<circle|f\(0\) =|>\(0, 0\)</, 'no selected point or inferred output');
+    assert.doesNotMatch(html, /stroke="var\(--math-(?:b|result)\)"/, 'no selected-input projections');
+    assertSafeGeometry(html, 'function without input');
+  }
+  const selected = drawing(markup(scene('function', { operation: 'curve', x: 0, result: 0, points })));
+  assert.match(selected, /f\(0\) = 0/);
+  assert.match(selected, />\(0, 0\)</);
+  assert.match(selected, /<circle[^>]*fill="var\(--math-result\)"/);
+});
+
+test('unselected curves suppress point measurements but retain numeric integral bounds', () => {
+  const derivative = drawing(markup(scene('function', { operation: 'derivative', x: null, result: null, slope: 2, points })));
+  assert.doesNotMatch(derivative, /<circle|slope 2|instantaneous rate|stroke="var\(--math-c\)"/);
+  const limit = drawing(markup(scene('function', { operation: 'limit', x: null, result: 1, points })));
+  assert.doesNotMatch(limit, /<circle|approaches|stroke="var\(--math-b\)"/);
+  const integral = drawing(markup(scene('function', { operation: 'integral', x: null, a: 0, b: 1, result: 1 / 3, points })));
+  assert.match(integral, /signed area = 0\.3333/);
+  assert.match(integral, /fill="var\(--math-c\)"/);
+  assert.doesNotMatch(integral, /<circle|>\(0, 0\)</);
 });
 
 test('null numeric inputs do not invent zero-valued geometry or a function curve', () => {

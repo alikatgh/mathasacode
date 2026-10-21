@@ -138,6 +138,14 @@ test('function definitions stay symbolic while secant endpoints are exact', () =
   assert.equal(change.data.slope, 4.5);
   assert.ok(change.data.points.some(([x, y]) => x === 2 && y === 4));
   assert.ok(change.data.points.some(([x, y]) => x === 2.5 && y === 6.25));
+  for (const language of ['javascript', 'python', 'c', 'rust']) {
+    const length = inspect('en-35', {}, 1, { language });
+    assert.equal(length.kind, 'vector', language);
+    assert.equal(length.data.operation, 'norm', language);
+    assert.deepEqual(length.data.a, [], language);
+    assert.equal(length.formulaTex, String.raw`\ell(x,y)=\sqrt{x^2+y^2}`, language);
+    assert.match(length.description, /horizontal and vertical sides/, language);
+  }
 });
 
 test('logical disjunction and conjunction retain their own mathematical rules', () => {

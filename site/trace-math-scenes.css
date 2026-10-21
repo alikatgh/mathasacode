@@ -19,14 +19,18 @@
   --math-c: #e6bb69;
   --math-result: #e899d3;
 }
-.math-scene svg { display: block; width: 100%; height: auto; overflow: hidden; }
+.math-scene > svg { display: block; width: 100%; height: auto; overflow: hidden; }
 .math-scene__label { font: 13px/1.3 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; }
 .math-scene__small { font-size: 12px; }
 .math-scene__tiny { font-size: 11px; }
 .math-scene__result { font-size: 15px; font-weight: 600; }
-.math-scene :is(line, path, rect, circle, ellipse) { vector-effect: non-scaling-stroke; }
+.math-scene__symbolic-norm .math-scene__label { font-family: var(--font-math, KaTeX_Main, Georgia, serif); font-size: 29px; }
+.math-scene .math-scene__symbolic-caption, .math-scene .math-scene__empty { margin: 4px 0 12px; color: var(--math-muted); font: 12px/1.6 var(--font-sans, sans-serif); }
+.math-scene--rule .trace-visualizer__formula { margin-block: 14px; font-size: 24px; }
+.math-scene > svg :is(line, path, rect, circle, ellipse) { vector-effect: non-scaling-stroke; }
 .math-scene__axis path { vector-effect: non-scaling-stroke; }
 @container trace-visualizer (max-width: 320px) {
+  .math-scene--rule .trace-visualizer__formula { font-size: 20px; }
   .math-scene__label { font-size: 18px; }
   .math-scene__small { font-size: 17px; }
   .math-scene__tiny { font-size: 14px; }
