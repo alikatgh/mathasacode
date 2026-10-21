@@ -24,6 +24,7 @@
 .experiment-handle { cursor: grab; touch-action: none; outline: none; }
 .experiment-handle:active { cursor: grabbing; }
 .experiment-handle:focus-visible .experiment-handle__ring { stroke-width: 3; opacity: 1; }
+.experiment-handle:focus-visible .experiment-handle__shaft { stroke: var(--ring); opacity: .15; }
 .experiment-formula { margin: 14px 0 0; font: 13px/1.8 var(--font-mono); overflow-wrap: anywhere; }
 .experiment-formula strong { color: var(--scene-b); font-weight: 600; }
 .experiment-drag-hint { margin: 6px 0 0; color: var(--muted-foreground); font-size: 11px; line-height: 1.6; }

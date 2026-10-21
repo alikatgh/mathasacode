@@ -2,6 +2,7 @@
 @import "./experiments/experiments.css";
 @import "./lesson-sections.css";
 @import "./code-trace.css";
+@import "./trace-visualizer.css";
 @import "./symbol-sheet.css";
 @import "./symbol-runnables.css";
 @import "./symbol-explorers.css";
@@ -68,11 +69,41 @@ body[data-reader="true"]:not(.app-ready) > :is(main, nav) { display: none; }
 .app-panels[data-sidebar-open="false"] > #lesson-pane { flex: 1 1 100% !important; min-width: 0 !important; }
 .app-workspace, .app-panels, .chapter-pane, .lesson-pane { min-height: 0; min-width: 0; height: 100%; }
 .lesson-pane { overflow: clip !important; }
+.topic-sidebar, .topic-sheet {
+  color-scheme: dark;
+  --sidebar: #1b211c;
+  --sidebar-foreground: #edf3e9;
+  --sidebar-accent: #344e39;
+  --sidebar-accent-foreground: #e5f2df;
+  --sidebar-primary: #a0d3a7;
+  --sidebar-primary-foreground: #15291b;
+  --sidebar-border: #3b483e;
+  --sidebar-ring: #a0d3a7;
+  --background: var(--sidebar);
+  --foreground: var(--sidebar-foreground);
+  --card: var(--sidebar);
+  --card-foreground: var(--sidebar-foreground);
+  --popover: #243027;
+  --popover-foreground: var(--sidebar-foreground);
+  --primary: var(--sidebar-primary);
+  --primary-foreground: var(--sidebar-primary-foreground);
+  --muted: #263129;
+  --muted-foreground: #b3bfb4;
+  --accent: var(--sidebar-accent);
+  --accent-foreground: var(--sidebar-accent-foreground);
+  --border: var(--sidebar-border);
+  --input: #748778;
+  --ring: var(--sidebar-ring);
+  color: var(--foreground);
+  background: var(--background);
+}
 .topic-sidebar { min-height: 0; height: 100%; }
+.sidebar-brand-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.sidebar-brand-row > [data-slot="tooltip-trigger"] { flex-shrink: 0; }
 .sidebar-brand { display: block; padding: 1px 4px 5px; color: var(--foreground); font-size: 15px; font-weight: 600; letter-spacing: -.025em; }
 .sidebar-brand > span { display: block; margin-top: 3px; color: var(--muted-foreground); font-size: 10px; font-weight: 400; letter-spacing: 0; }
-.sidebar-sections { display: grid; gap: 2px; padding-bottom: 5px; }
-.sidebar-sections > a { display: flex; align-items: center; gap: 9px; min-height: 33px; padding: 6px 8px; border-radius: 5px; color: var(--muted-foreground); font-size: 12px; }
+.sidebar-sections { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; padding: 3px; margin-bottom: 5px; border: 1px solid var(--border); border-radius: 7px; background: #141a16; }
+.sidebar-sections > a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-width: 0; min-height: 51px; padding: 6px 3px; border-radius: 4px; color: var(--muted-foreground); font-size: 11px; line-height: 1.2; text-align: center; }
 .sidebar-sections > a > svg { width: 15px; height: 15px; flex-shrink: 0; }
 .sidebar-sections > a:hover { color: var(--foreground); background: var(--sidebar-accent); }
 .sidebar-sections > a[aria-current="page"] { background: var(--sidebar-accent); color: var(--sidebar-accent-foreground); font-weight: 500; }
@@ -97,7 +128,13 @@ body[data-reader="true"]:not(.app-ready) > :is(main, nav) { display: none; }
 .topic-sidebar [data-slot="sidebar-menu"] { gap: 1px; }
 .sidebar-settings [data-slot="native-select-wrapper"] { flex: 1; min-width: 0; }
 .sidebar-settings [data-slot="native-select"] { width: 100%; min-width: 0; font-size: 11px; }
+.sidebar-settings [data-slot="native-select"] { background: var(--muted); color: var(--foreground); }
 .sidebar-settings [data-slot="button"] { flex-shrink: 0; width: 30px; height: 32px; }
+.sidebar-search { color-scheme: light; --muted-foreground: #58645c; --ring: #356344; }
+.sidebar-search input { color-scheme: light; color: #202822; background: #fff; border-color: #fff; }
+.sidebar-search input::placeholder { color: #58645c; opacity: 1; }
+.sidebar-search [data-slot="button"] { color: #435247; }
+.sidebar-search [data-slot="button"]:hover { color: #202822; background: #eaf0e7; }
 .topic-sidebar [data-slot="scroll-area-viewport"] > div { display: block !important; }
 .topic-sidebar input::-webkit-search-cancel-button { display: none; }
 .lesson-workspace { display: grid; grid-template-rows: 108px minmax(0, 1fr) 64px; height: 100%; min-width: 0; min-height: 0; overflow: clip; }

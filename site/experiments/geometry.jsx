@@ -3,6 +3,7 @@ import { Button } from '../components/ui/button';
 import { ExperimentFrame, RangeControl, Metric, SvgHandle } from './scene-ui.jsx';
 import {
   INITIAL_DOT_ANGLE, rotateDotVector, dotAngleForPoint, normalizationState, matrixTransformState, unitCircleState,
+  plotCoordinates, normalizationForPoint, matrixEntryForPoint, unitCircleAngleForPoint,
 } from './geometry-model.mjs';
 
 const A = 'var(--scene-a)';
@@ -97,7 +98,7 @@ export function DotProjection({ language = 'en' }) {
   const axisEnd = point([2.6, 5.2]);
   const sign = Math.abs(state.dot) < 1e-9 ? t.zero : state.dot > 0 ? t.positive : t.negative;
   const moveVector = ({ x, y }) => {
-    const angle = dotAngleForPoint([(x - origin[0]) / 18, (origin[1] - y) / 18]);
+    const angle = dotAngleForPoint(plotCoordinates({ x, y }, origin, 18));
     if (angle === null) return;
     setDegrees(Math.round(angle * 10) / 10);
     setStep(value => Math.max(1, value));
@@ -123,6 +124,7 @@ export function DotProjection({ language = 'en' }) {
       <RangeControl label={t.angle} value={degrees} min={-180} max={180} step={0.1} onChange={setDegrees} display={`${fmt(degrees, 1)}°`} />
       <div className="experiment-presets">{[0, 90, 180].map((value, i) => <Button key={value} type="button" variant="outline" size="sm" onClick={() => setDegrees(value)}>{t.presets[i]}</Button>)}</div>
       <p className="experiment-drag-hint">{t.hint}</p>
+      <p className="experiment-drag-hint">{languageOf(language) === 'zh' ? '也可以拖动箭头本身。' : 'You can also drag the arrow itself.'}</p>
     </>}
     readout={<>
       <Metrics><Metric label={t.vectorA} value={pair(state.a)} />{step >= 1 && <Metric label={t.vectorB} value={pair(state.b)} />}{step >= 2 && <Metric label={t.projection} value={pair(state.projection)} />}{step >= 3 && <><Metric label={t.signed} value={fmt(state.signedLength)} /><Metric label={t.dot} value={fmt(state.dot)} /></>}</Metrics>
@@ -145,7 +147,7 @@ export function DotProjection({ language = 'en' }) {
       <text x={a[0] + 12} y={a[1] + 10} fill={A} fontSize="20">a</text>
       <Arrow from={origin} to={b} color={B} opacity={step === 0 ? 0.4 : 1} />
       <text x={clamp(b[0] + 16, 25, 335)} y={clamp(b[1] + 2, 24, 243)} fill={B} fontSize="20">b</text>
-      <SvgHandle x={b[0]} y={b[1]} label={`${t.handle} θ = ${fmt(degrees, 1)}°`} color={B} onMove={moveVector}
+      <SvgHandle from={origin} x={b[0]} y={b[1]} label={`${t.handle} θ = ${fmt(degrees, 1)}°`} color={B} onMove={moveVector}
         onNudge={(dx, dy) => { setDegrees(value => clamp(value + dx - dy, -180, 180)); setStep(value => Math.max(1, value)); }} />
       <circle cx={origin[0]} cy={origin[1]} r="3" fill="currentColor" />
       <text x="159" y="161" fill="currentColor" fontSize="18">0</text>
@@ -165,65 +167,84 @@ export function DotProjection({ language = 'en' }) {
 
 const normalizationCopy = {
   en: {
-    title: 'Change the length. Keep the direction.', description: 'Normalize v = [0, 4, −3] by dividing every coordinate by its length.',
+    title: 'Change the length. Keep the direction.', description: 'Start with v = [0, 4, −3]. Normalize the current vector by dividing every coordinate by its length.',
     scale: 'Scale the original vector', steps: ['Start with the vector', 'Measure its length', 'Divide by the same length', 'Compare the unit direction'],
     captions: [
-      'This is the last two coordinates of [0, 4, −3]. The first coordinate stays zero, so this 2D view preserves the full length.',
+      'Start with [0, 4, −3], then drag v to choose another vector in the y z plane. The first coordinate stays zero, so this 2D view preserves the full length.',
       'The horizontal and vertical legs give |v| = √(0² + y² + z²). At scale 1, the length is 5.',
       'Divide each coordinate by |v|. This scales the arrow without turning it.',
       'The unit arrow has length 1 at every scale. Both arrows share the same direction and the same plot scale.',
     ],
     vector: 'v', length: '|v|', unit: 'v / |v|', unitLength: 'Unit length', plot: 'Vector v and its unit direction in the y z plane',
+    handle: 'Change vector v. Drag the arrow or use the arrow keys.',
+    hint: 'Drag v to choose its length and direction in the y z plane, or focus it and use arrow keys. Length stays between 1 and 10; zero has no unit direction. The slider scales the chosen direction.',
+    reset: 'Reset vector',
   },
   zh: {
-    title: '改变长度，保持方向', description: '将 v = [0, 4, −3] 的每个坐标除以向量长度，得到单位向量。',
+    title: '改变长度，保持方向', description: '从 v = [0, 4, −3] 开始。将当前向量的每个坐标除以向量长度，得到单位向量。',
     scale: '缩放原向量', steps: ['观察原向量', '测量向量长度', '每个坐标除以长度', '比较单位方向'],
     captions: [
-      '图中显示 [0, 4, −3] 的后两个坐标。第一个坐标始终为零，因此二维图保留了完整长度。',
+      '从 [0, 4, −3] 开始，再拖动 v 选择 y z 平面中的其他向量。第一个坐标始终为零，因此二维图保留了完整长度。',
       '水平和竖直直角边给出 |v| = √(0² + y² + z²)。缩放倍数为 1 时，长度为 5。',
       '将每个坐标除以 |v|。箭头按比例缩放，方向不变。',
       '无论如何缩放，单位箭头的长度都是 1。两个箭头方向相同，使用相同的绘图比例。',
     ],
     vector: 'v', length: '|v|', unit: 'v / |v|', unitLength: '单位长度', plot: 'y z 平面上的向量 v 及其单位方向',
+    handle: '改变向量 v。拖动箭头或使用方向键。',
+    hint: '拖动 v 选择 y z 平面中的长度和方向，也可聚焦后使用方向键。长度限制在 1 到 10；零向量没有单位方向。滑块沿所选方向缩放。',
+    reset: '重置向量',
   },
 };
 
 export function Normalization({ language = 'en' }) {
   const t = normalizationCopy[languageOf(language)];
-  const [scale, setScale] = useState(1);
+  const [vector, setVector] = useState({ scale: 1, direction: [4, -3] });
   const [step, setStep] = useState(0);
-  const state = normalizationState(scale);
-  const origin = [58, 54];
-  const point = ([y, z]) => [origin[0] + y * 24, origin[1] - z * 24];
+  const { scale, direction } = vector;
+  const state = normalizationState(scale, direction);
+  const origin = [180, 132];
+  const plotScale = 11;
+  const point = ([y, z]) => [origin[0] + y * plotScale, origin[1] - z * plotScale];
   const endpoint = point(state.input.slice(1));
   const unitEnd = point(state.unit.slice(1));
   const foot = [endpoint[0], origin[1]];
+  const changeVector = coordinates => {
+    const next = normalizationForPoint(coordinates);
+    if (next) setVector(next);
+  };
   return <ExperimentFrame language={language} title={t.title} description={t.description} steps={t.steps} step={step} onStep={setStep}
-    controls={<RangeControl label={t.scale} value={scale} min={0.2} max={2} step={0.05} onChange={setScale} display={`${fmt(scale, 2)}×`} />}
+    controls={<>
+      <RangeControl label={t.scale} value={scale} min={0.2} max={2} step={0.01} onChange={value => setVector(previous => ({ ...previous, scale: value }))} display={`${fmt(scale, 2)}×`} />
+      <p className="experiment-drag-hint">{t.hint}</p>
+      <Button type="button" variant="outline" size="sm" onClick={() => { setVector({ scale: 1, direction: [4, -3] }); setStep(0); }}>{t.reset}</Button>
+    </>}
     readout={<Metrics><Metric label={t.vector} value={pair(state.input)} />{step >= 1 && <Metric label={t.length} value={fmt(state.length)} />}{step >= 2 && <Metric label={t.unit} value={pair(state.unit)} />}{step >= 3 && <Metric label={t.unitLength} value="1" />}</Metrics>}
     caption={t.captions[step]}>
-    <Plot label={`${t.plot}. ${t.steps[step]}. ${t.vector} = ${pair(state.input)}. ${step >= 1 ? `${t.length} = ${fmt(state.length)}.` : ''}`}>
-      <Grid origin={origin} scale={24} xs={[0, 2, 4, 6, 8, 10]} ys={[-8, -6, -4, -2, 0]} xMin={0} xMax={10} yMin={-8} yMax={0} />
-      <line x1="36" y1={origin[1]} x2="320" y2={origin[1]} stroke="currentColor" opacity="0.35" />
-      <line x1={origin[0]} y1="27" x2={origin[0]} y2="244" stroke="currentColor" opacity="0.35" />
-      <text x="322" y="61" fill="currentColor" fontSize="18">y</text><text x="38" y="31" fill="currentColor" fontSize="18">z</text>
-      <text x="35" y="77" fill="currentColor" fontSize="18">0</text>
+    <Plot interactive label={`${t.plot}. ${t.steps[step]}. ${t.vector} = ${pair(state.input)}. ${step >= 1 ? `${t.length} = ${fmt(state.length)}.` : ''}`}>
+      <Grid origin={origin} scale={plotScale} xs={[-10, -5, 0, 5, 10]} ys={[-10, -5, 0, 5, 10]} xMin={-12} xMax={12} yMin={-10} yMax={10} />
+      <line x1="36" y1={origin[1]} x2="324" y2={origin[1]} stroke="currentColor" opacity="0.35" />
+      <line x1={origin[0]} y1="17" x2={origin[0]} y2="247" stroke="currentColor" opacity="0.35" />
+      <text x="329" y="139" fill="currentColor" fontSize="18">y</text><text x="188" y="24" fill="currentColor" fontSize="18">z</text>
+      <text x="161" y="153" fill="currentColor" fontSize="18">0</text>
       {step >= 1 && <>
         <polyline points={`${origin.join(',')} ${foot.join(',')} ${endpoint.join(',')}`} stroke="currentColor" opacity="0.5" strokeDasharray="5 5" strokeWidth="2" fill="none" />
-        {scale >= 0.4 && <polyline points={`${foot[0] - 8},${foot[1]} ${foot[0] - 8},${foot[1] + 8} ${foot[0]},${foot[1] + 8}`} stroke="currentColor" opacity="0.5" fill="none" />}
+        {Math.abs(state.input[1]) > 0.8 && Math.abs(state.input[2]) > 0.8 && <polyline points={`${foot[0] - Math.sign(state.input[1]) * 8},${foot[1]} ${foot[0] - Math.sign(state.input[1]) * 8},${foot[1] - Math.sign(state.input[2]) * 8} ${foot[0]},${foot[1] - Math.sign(state.input[2]) * 8}`} stroke="currentColor" opacity="0.5" fill="none" />}
         <text x={clamp((origin[0] + endpoint[0]) / 2 + 6, 28, 312)} y={clamp((origin[1] + endpoint[1]) / 2 + 25, 30, 242)} fill={A} fontSize="19">|v| = {fmt(state.length, 2)}</text>
       </>}
       <Arrow from={origin} to={endpoint} color={A} width={3} />
-      <text x={clamp(endpoint[0] + 12, 26, 332)} y={endpoint[1] + 5} fill={A} fontSize="20">v</text>
+      <text x={clamp(endpoint[0] + 16, 26, 332)} y={clamp(endpoint[1] + 5, 24, 244)} fill={A} fontSize="20">v</text>
       {step >= 2 && <>
         <Arrow from={origin} to={unitEnd} color={B} width={5} />
-        <line x1={unitEnd[0] - 4} y1={unitEnd[1] + 7} x2="89" y2="104" stroke={B} strokeWidth="1.5" />
-        <text x="90" y="123" fill={B} fontSize="18">v / |v|</text>
+        <line x1={unitEnd[0]} y1={unitEnd[1]} x2="113" y2="94" stroke={B} strokeWidth="1.5" />
+        <text x="44" y="86" fill={B} fontSize="18">v / |v|</text>
       </>}
       {step >= 3 && <>
-        <circle cx={origin[0]} cy={origin[1]} r="24" stroke={B} opacity="0.6" strokeDasharray="3 4" fill="none" />
-        <text x="119" y="31" fill={B} fontSize="19">|v / |v|| = 1</text>
+        <circle cx={origin[0]} cy={origin[1]} r={plotScale} stroke={B} opacity="0.6" strokeDasharray="3 4" fill="none" />
+        <text x="30" y="31" fill={B} fontSize="19">|v / |v|| = 1</text>
       </>}
+      <SvgHandle from={origin} x={endpoint[0]} y={endpoint[1]} color={A} label={`${t.handle} v = ${pair(state.input)}`}
+        onMove={point => changeVector(plotCoordinates(point, origin, plotScale))}
+        onNudge={(dx, dy) => changeVector([state.input[1] + dx * 0.1, state.input[2] - dy * 0.1])} />
     </Plot>
   </ExperimentFrame>;
 }
@@ -240,6 +261,8 @@ const matrixCopy = {
     ],
     matrix: 'Matrix A', first: 'A e₁', second: 'A e₂', determinant: 'det(A)', area: 'Transformed area', orientation: 'Orientation',
     preserved: 'Preserved', reversed: 'Reversed', collapsed: 'Collapsed to a line', areaWord: 'area', plot: 'Original unit square and its matrix-transformed parallelogram',
+    handle: 'Change m₁₂ by moving A e₂ horizontally. Drag the arrow or use Left and Right.',
+    hint: 'At the basis-vector step, drag A e₂ left or right, or focus it and use Left and Right. Its vertical coordinate stays 3; A e₁ stays fixed.',
   },
   zh: {
     title: '矩阵变换整个正方形', description: '矩阵的两列分别确定两个单位基向量的新位置，它们共同确定变换后的形状。',
@@ -252,6 +275,8 @@ const matrixCopy = {
     ],
     matrix: '矩阵 A', first: 'A e₁', second: 'A e₂', determinant: 'det(A)', area: '变换后的面积', orientation: '方向',
     preserved: '保持', reversed: '翻转', collapsed: '压缩成一条直线', areaWord: '面积', plot: '原始单位正方形及矩阵变换后的平行四边形',
+    handle: '水平移动 A e₂ 来改变 m₁₂。拖动箭头或使用左右方向键。',
+    hint: '在基向量步骤中，左右拖动 A e₂，也可聚焦后使用左右方向键。竖直坐标保持为 3；A e₁ 保持不变。',
   },
 };
 
@@ -270,10 +295,11 @@ export function MatrixTransform({ language = 'en' }) {
     controls={<>
       <RangeControl label={t.control} value={upperRight} min={-2} max={8} step={0.1} onChange={setUpperRight} display={fmt(upperRight, 1)} />
       <div className="experiment-presets">{[1, 6, 8].map((value, index) => <Button key={value} type="button" variant="outline" size="sm" onClick={() => setUpperRight(value)}>{[t.preserved, t.collapsed, t.reversed][index]}</Button>)}</div>
+      <p className="experiment-drag-hint">{t.hint}</p>
     </>}
     readout={<Metrics><Metric label={t.matrix} value={`[[2, ${fmt(upperRight)}], [1, 3]]`} />{step >= 1 && <><Metric label={t.first} value={pair(state.firstBasis)} /><Metric label={t.second} value={pair(state.secondBasis)} /></>}{step >= 3 && <><Metric label={t.determinant} value={`6 − (${fmt(upperRight)}) = ${fmt(state.determinant)}`} /><Metric label={t.area} value={fmt(state.area)} /><Metric label={t.orientation} value={t[state.orientation]} /></>}</Metrics>}
     caption={t.captions[step]}>
-    <Plot label={`${t.plot}. ${t.steps[step]}. ${step >= 3 ? `${t.determinant} = ${fmt(state.determinant)}. ${t[state.orientation]}.` : ''}`}>
+    <Plot interactive label={`${t.plot}. ${t.steps[step]}. ${step >= 3 ? `${t.determinant} = ${fmt(state.determinant)}. ${t[state.orientation]}.` : ''}`}>
       <Grid origin={origin} scale={26} xs={[-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]} ys={[0, 1, 2, 3, 4, 5, 6]} xMin={-2} xMax={10} yMin={0} yMax={6} />
       <line x1="27" y1="220" x2="350" y2="220" stroke="currentColor" opacity="0.35" /><line x1="86" y1="239" x2="86" y2="53" stroke="currentColor" opacity="0.35" />
       <polygon points={originalPoints} stroke="currentColor" fill="currentColor" fillOpacity="0.07" strokeOpacity="0.5" strokeWidth="2" />
@@ -283,6 +309,9 @@ export function MatrixTransform({ language = 'en' }) {
         <Arrow from={origin} to={first} color={A} /><Arrow from={origin} to={second} color={B} />
         <text x={first[0] + 9} y={first[1] + 14} fill={A} fontSize="18">Ae₁</text>
         <text x={clamp(second[0], 38, 320)} y={second[1] - 12} textAnchor="middle" fill={B} fontSize="18">Ae₂</text>
+        <SvgHandle from={origin} x={second[0]} y={second[1]} color={B} label={`${t.handle} m₁₂ = ${fmt(upperRight, 1)}`}
+          onMove={point => setUpperRight(matrixEntryForPoint(plotCoordinates(point, origin, 26)))}
+          onNudge={dx => setUpperRight(value => matrixEntryForPoint([value + dx * 0.1, 3]))} />
       </>}
       {step >= 3 && <text x="336" y="32" textAnchor="end" fill="currentColor" fontSize="21">{t.areaWord} = {fmt(state.area)}</text>}
     </Plot>
@@ -300,6 +329,8 @@ const circleCopy = {
       'The hypotenuse has length 1, so x² + y² = cos² θ + sin² θ = 1 at every angle.',
     ],
     radians: 'θ in radians', cosine: 'x = cos θ', sine: 'y = sin θ', identity: 'cos² θ + sin² θ', plot: 'Unit circle with a rotating radius and horizontal and vertical projections',
+    handle: 'Rotate the unit radius. Drag the arrow or use the arrow keys.',
+    hint: 'Drag the radius arrow or its endpoint, or focus it and use arrow keys. The point stays on the unit circle.',
   },
   zh: {
     title: '正弦和余弦就是坐标', description: '沿半径为 1 的圆移动。圆上点的水平坐标是余弦，竖直坐标是正弦。',
@@ -311,6 +342,8 @@ const circleCopy = {
       '斜边长度为 1，因此任意角度下都有 x² + y² = cos² θ + sin² θ = 1。',
     ],
     radians: 'θ 的弧度值', cosine: 'x = cos θ', sine: 'y = sin θ', identity: 'cos² θ + sin² θ', plot: '单位圆、旋转半径及其水平和竖直投影',
+    handle: '旋转单位半径。拖动箭头或使用方向键。',
+    hint: '拖动半径箭头或端点，也可聚焦后使用方向键。端点始终位于单位圆上。',
   },
 };
 
@@ -327,10 +360,13 @@ export function UnitCircle({ language = 'en' }) {
   const cornerX = xFoot[0] - Math.sign(state.x) * 8;
   const cornerY = xFoot[1] - Math.sign(state.y) * 8;
   return <ExperimentFrame language={language} title={t.title} description={t.description} steps={t.steps} step={step} onStep={setStep}
-    controls={<RangeControl label={t.angle} value={degrees} min={0} max={360} step={1} onChange={setDegrees} display={`${degrees}° = ${fmt(state.radians)} rad`} />}
+    controls={<>
+      <RangeControl label={t.angle} value={degrees} min={0} max={360} step={1} onChange={setDegrees} display={`${degrees}° = ${fmt(state.radians)} rad`} />
+      <p className="experiment-drag-hint">{t.hint}</p>
+    </>}
     readout={<Metrics><Metric label={t.radians} value={fmt(state.radians)} />{step >= 1 && <Metric label={t.cosine} value={fmt(state.x)} />}{step >= 2 && <Metric label={t.sine} value={fmt(state.y)} />}{step >= 3 && <Metric label={t.identity} value={`${fmt(state.xSquared)} + ${fmt(state.ySquared)} = 1`} />}</Metrics>}
     caption={t.captions[step]}>
-    <Plot label={`${t.plot}. ${t.steps[step]}. θ = ${degrees}°. ${step >= 1 ? `${t.cosine} = ${fmt(state.x)}.` : ''} ${step >= 2 ? `${t.sine} = ${fmt(state.y)}.` : ''}`}>
+    <Plot interactive label={`${t.plot}. ${t.steps[step]}. θ = ${degrees}°. ${step >= 1 ? `${t.cosine} = ${fmt(state.x)}.` : ''} ${step >= 2 ? `${t.sine} = ${fmt(state.y)}.` : ''}`}>
       <line x1="56" y1="132" x2="306" y2="132" stroke={GRID} strokeWidth="1.5" /><line x1="180" y1="20" x2="180" y2="244" stroke={GRID} strokeWidth="1.5" />
       <circle cx="180" cy="132" r="90" fill="none" stroke="currentColor" opacity="0.4" strokeWidth="1.5" />
       <text x="307" y="139" fill="currentColor" fontSize="18">x</text><text x="188" y="28" fill="currentColor" fontSize="18">y</text>
@@ -354,7 +390,12 @@ export function UnitCircle({ language = 'en' }) {
       </>}
       <Arrow from={origin} to={point} color="currentColor" width={2.5} />
       <text x={(origin[0] + point[0]) / 2 + 10} y={(origin[1] + point[1]) / 2 - 10} fill="currentColor" fontSize="18">1</text>
-      <circle cx={point[0]} cy={point[1]} r="5" fill={B} />
+      <SvgHandle from={origin} x={point[0]} y={point[1]} color={B} label={`${t.handle} θ = ${degrees}°`}
+        onMove={point => {
+          const angle = unitCircleAngleForPoint(plotCoordinates(point, origin, 90));
+          if (angle !== null) setDegrees(Math.round(angle));
+        }}
+        onNudge={(dx, dy) => setDegrees(value => (value + dx - dy + 360) % 360)} />
       {step >= 3 && <text x="180" y="256" textAnchor="middle" fill="currentColor" fontSize="19">cos² θ + sin² θ = 1</text>}
     </Plot>
   </ExperimentFrame>;

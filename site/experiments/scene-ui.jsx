@@ -17,10 +17,10 @@ export function Metric({ label, value }) {
 
 // Pointer coordinates follow the SVG's transform, including its letterboxing
 // and responsive scale. The owner maps them into bounded mathematical values.
-export function SvgHandle({ x, y, label, onMove, onNudge, color = 'var(--scene-b)' }) {
+export function SvgHandle({ x, y, from, label, onMove, onNudge, color = 'var(--scene-b)' }) {
   const activePointer = useRef(null);
-  const move = event => {
-    if (activePointer.current !== event.pointerId) return;
+  const grabOffset = useRef({ x: 0, y: 0 });
+  const localPoint = event => {
     const svg = event.currentTarget.ownerSVGElement;
     const matrix = svg?.getScreenCTM();
     if (!matrix) return;
@@ -28,7 +28,12 @@ export function SvgHandle({ x, y, label, onMove, onNudge, color = 'var(--scene-b
     point.x = event.clientX;
     point.y = event.clientY;
     const local = point.matrixTransform(matrix.inverse());
-    if (Number.isFinite(local.x) && Number.isFinite(local.y)) onMove?.({ x: local.x, y: local.y });
+    if (Number.isFinite(local.x) && Number.isFinite(local.y)) return local;
+  };
+  const move = event => {
+    if (activePointer.current !== event.pointerId) return;
+    const local = localPoint(event);
+    if (local) onMove?.({ x: local.x - grabOffset.current.x, y: local.y - grabOffset.current.y });
   };
   const release = event => {
     if (activePointer.current !== event.pointerId) return;
@@ -40,6 +45,10 @@ export function SvgHandle({ x, y, label, onMove, onNudge, color = 'var(--scene-b
       if (!event.isPrimary || event.button !== 0) return;
       event.preventDefault();
       event.currentTarget.focus();
+      const local = localPoint(event);
+      // Grabbing a shaft keeps the endpoint's offset instead of snapping the
+      // vector tip to the middle of its own arrow on pointer-down.
+      grabOffset.current = from && local ? { x: local.x - x, y: local.y - y } : { x: 0, y: 0 };
       activePointer.current = event.pointerId;
       event.currentTarget.setPointerCapture(event.pointerId);
       move(event);
@@ -53,6 +62,7 @@ export function SvgHandle({ x, y, label, onMove, onNudge, color = 'var(--scene-b
       onNudge(...delta);
     }}>
     <title>{label}</title>
+    {from && <line className="experiment-handle__shaft" x1={from[0]} y1={from[1]} x2={x} y2={y} stroke="transparent" strokeWidth="24" strokeLinecap="round" pointerEvents="stroke" />}
     <circle cx={x} cy={y} r="16" fill="transparent" />
     <circle className="experiment-handle__ring" cx={x} cy={y} r="11" fill="var(--card)" stroke={color} strokeWidth="1.5" opacity=".75" />
     <circle cx={x} cy={y} r="5" fill={color} stroke="var(--card)" strokeWidth="1.5" />

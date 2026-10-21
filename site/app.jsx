@@ -22,6 +22,8 @@ import { prepareSymbolRunnables, SymbolRunnablePortals } from './symbol-runnable
 import { prepareSymbolExplorers, SymbolExplorerPortals } from './symbol-explorers.jsx';
 import { ConceptMap } from './concept-map.jsx';
 import { prepareComparisons, ComparisonPortals } from './comparison-frames.jsx';
+import { changeExampleLanguage, exampleLanguageStorage, readExampleLanguage, subscribeExampleLanguage } from './example-model.mjs';
+import { guideVersionValue, guideVersionTarget } from './guide-version.mjs';
 
 const zh = document.documentElement.lang.startsWith('zh');
 const guide = document.body.dataset.guide === 'true';
@@ -58,7 +60,7 @@ function IconButton({ label, children, ...props }) {
   return <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" type="button" aria-label={label} {...props}>{children}</Button></TooltipTrigger><TooltipContent>{label}</TooltipContent></Tooltip>;
 }
 
-function TopicSidebar({ controller, snapshot, labels, model, searchRef, onNavigate, settings, mobile = false }) {
+function TopicSidebar({ controller, snapshot, labels, model, searchRef, onNavigate, settings, sidebarToggle, mobile = false }) {
   const progress = useSyncExternalStore(model.subscribe, model.getSnapshot);
   const [query, setQuery] = useState('');
   const [expanded, setExpanded] = useState(() => new Set());
@@ -86,17 +88,17 @@ function TopicSidebar({ controller, snapshot, labels, model, searchRef, onNaviga
     else if (row.bottom > panel.bottom) viewport.scrollTop += row.bottom - panel.bottom + 8;
   }, [snapshot.topicIndex, normalized, expanded]);
   const sections = [
-    ['reference', zh ? '数学参考' : 'Math reference', '/', BookOpen],
-    ['ml', zh ? '机器学习与深度学习' : 'ML & deep learning', '/machine-learning.html', FlaskConical],
-    ['cheatsheet', zh ? '符号速查表 · English' : 'Symbol cheatsheet', '/cheatsheet.html', FileText]
+    ['reference', zh ? '数学' : 'Math', zh ? '数学参考' : 'Math reference', '/', BookOpen],
+    ['ml', zh ? '机器学习' : 'ML', zh ? '机器学习与深度学习' : 'ML & deep learning', '/machine-learning.html', FlaskConical],
+    ['cheatsheet', zh ? '符号' : 'Symbols', zh ? '符号速查表 · English' : 'Symbol cheatsheet', '/cheatsheet.html', FileText]
   ];
   return <Sidebar collapsible="none" className="topic-sidebar w-full" aria-label={words.contents}>
     <SidebarHeader className="gap-2 p-3 pb-1">
-      <a className="sidebar-brand" href="/">Math as Code<span>{words.subtitle}</span></a>
+      <div className="sidebar-brand-row"><a className="sidebar-brand" href="/">Math as Code<span>{words.subtitle}</span></a>{sidebarToggle}</div>
       <nav aria-label={zh ? '学习内容' : 'Learning sections'} className="sidebar-sections">
-        {sections.map(([id, label, url, Icon]) => <a key={id} href={id === 'reference' && section === 'reference' ? guideVersionPath(location.pathname) : url} aria-current={section === id ? 'page' : undefined}><Icon aria-hidden="true" /><span>{label}</span>{id === 'cheatsheet' && <span className="sidebar-section-note">{zh ? '一页' : 'One page'}</span>}</a>)}
+        {sections.map(([id, label, fullLabel, url, Icon]) => <a key={id} href={id === 'reference' && section === 'reference' ? guideVersionPath(location.pathname) : url} aria-label={fullLabel} title={fullLabel} aria-current={section === id ? 'page' : undefined}><Icon aria-hidden="true" /><span>{label}</span></a>)}
       </nav>
-      <div className="relative flex items-center"><Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" aria-hidden="true" /><Input ref={searchRef} type="search" className="pr-10 pl-9" aria-label={words.search} placeholder={words.search} value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape' && !mobile) { setQuery(''); event.stopPropagation(); } }} />{query ? <Button type="button" variant="ghost" size="icon-sm" className="absolute right-1" aria-label={words.clear} onClick={() => { setQuery(''); searchRef.current?.focus(); }}><X /></Button> : !mobile && <kbd className="pointer-events-none absolute right-3 text-[10px] text-muted-foreground">⌘ K</kbd>}</div>
+      <div className="sidebar-search relative flex items-center"><Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" aria-hidden="true" /><Input ref={searchRef} type="search" className="pr-10 pl-9" aria-label={words.search} placeholder={words.search} value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape' && !mobile) { setQuery(''); event.stopPropagation(); } }} />{query ? <Button type="button" variant="ghost" size="icon-sm" className="absolute right-1" aria-label={words.clear} onClick={() => { setQuery(''); searchRef.current?.focus(); }}><X /></Button> : !mobile && <kbd className="pointer-events-none absolute right-3 text-[10px] text-muted-foreground">⌘ K</kbd>}</div>
     </SidebarHeader>
     <SidebarContent className="min-h-0 overflow-hidden">
       <div className="sidebar-contents-label"><span>{cheatsheet ? (zh ? '本页内容' : 'On this page') : words.contents}</span><span aria-live="polite">{normalized ? `${found} / ${total}` : total}</span>{!cheatsheet && <button type="button" onClick={() => setExpanded(expanded.size === groups.length ? new Set() : new Set(groups.map(group => group.id)))}>{expanded.size === groups.length ? (zh ? '收起全部' : 'Collapse all') : (zh ? '展开全部' : 'Expand all')}</button>}</div>
@@ -167,12 +169,22 @@ function App({ controller, labels, model, examples, comparisons, symbolExamples,
   const [compact, setCompact] = useState(() => matchMedia('(max-width: 900px)').matches);
   const [sidebarOpen, setSidebarOpen] = useState(() => { try { return localStorage.getItem('math-as-code-sidebar-v1') !== 'closed'; } catch { return true; } });
   const [dark, setDark] = useState(() => { try { return localStorage.getItem('math-as-code-theme-v1') === 'dark'; } catch { return false; } });
+  const [exampleLanguage, setExampleLanguage] = useState(() => readExampleLanguage(exampleLanguageStorage(window),
+    examples.find(example => !example.standalone)?.defaultLanguage || 'javascript'));
   const search = useRef(null);
   const mobileSearch = useRef(null);
   const selectedRoute = useRef(false);
   const searchRequested = useRef(false);
+  const sidebarToggle = useRef(null);
+  const restoreToggleFocus = useRef(false);
   useLayoutEffect(() => { document.documentElement.classList.toggle('dark', dark); try { localStorage.setItem('math-as-code-theme-v1', dark ? 'dark' : 'light'); } catch {} }, [dark]);
   useEffect(() => { try { localStorage.setItem('math-as-code-sidebar-v1', sidebarOpen ? 'open' : 'closed'); } catch {} }, [sidebarOpen]);
+  useEffect(() => subscribeExampleLanguage(window, setExampleLanguage), []);
+  useLayoutEffect(() => {
+    if (!restoreToggleFocus.current) return;
+    restoreToggleFocus.current = false;
+    sidebarToggle.current?.focus({ preventScroll: true });
+  }, [sidebarOpen]);
   useEffect(() => {
     const media = matchMedia('(max-width: 900px)');
     const change = () => { setCompact(media.matches); if (!media.matches) setMobileOpen(false); };
@@ -187,20 +199,26 @@ function App({ controller, labels, model, examples, comparisons, symbolExamples,
     document.addEventListener('keydown', keydown);
     return () => { media.removeEventListener('change', change); document.removeEventListener('keydown', keydown); };
   }, []);
-  const version = guideVersionPath(location.pathname);
+  const version = guideVersionValue(location.pathname, exampleLanguage);
+  const selectGuideVersion = value => {
+    const target = guideVersionTarget(location.pathname, value);
+    if (!target) return;
+    if (target.language) changeExampleLanguage(window, target.language);
+    if (target.path) location.href = target.path;
+  };
   const settings = <div className="sidebar-settings flex items-center gap-1">
     <a href="/" className="sidebar-logo" aria-label="Math as Code"><span className="sidebar-logo__crop" aria-hidden="true"><img className="sidebar-logo__image" src="/assets/logo.png" width="1254" height="1254" alt="" decoding="async" /></span></a>
-    <NativeSelect size="sm" aria-label={words.versions} value={version} onChange={event => { location.href = event.target.value; }}><NativeSelectOption value="/">English · JS</NativeSelectOption><NativeSelectOption value="/PYTHON-README.html">English · Python</NativeSelectOption><NativeSelectOption value="/README-zh.html">中文</NativeSelectOption>{version === '/machine-learning.html' && <NativeSelectOption value="/machine-learning.html">ML · English</NativeSelectOption>}</NativeSelect>
+    <NativeSelect size="sm" aria-label={words.versions} value={version} onChange={event => selectGuideVersion(event.target.value)}><NativeSelectOption value="javascript">English · JS</NativeSelectOption><NativeSelectOption value="python">English · Python</NativeSelectOption><NativeSelectOption value="c">English · C</NativeSelectOption><NativeSelectOption value="rust">English · Rust</NativeSelectOption><NativeSelectOption value="zh">中文</NativeSelectOption></NativeSelect>
     <IconButton label={words.theme} onClick={() => setDark(value => !value)}>{dark ? <Sun /> : <Moon />}</IconButton>
     <IconButton label={words.source} asChild><a href="https://github.com/alikatgh/mathasacode"><Code2 /></a></IconButton>
   </div>;
-  const sidebar = (mobile = false) => <TopicSidebar controller={controller} snapshot={snapshot} labels={labels} model={model} searchRef={mobile ? mobileSearch : search} mobile={mobile} settings={settings} onNavigate={mobile ? () => { selectedRoute.current = true; setMobileOpen(false); } : undefined} />;
+  const sidebar = (mobile = false) => <TopicSidebar controller={controller} snapshot={snapshot} labels={labels} model={model} searchRef={mobile ? mobileSearch : search} mobile={mobile} settings={settings} sidebarToggle={!mobile && !compact && sidebarOpen ? toggle : undefined} onNavigate={mobile ? () => { selectedRoute.current = true; setMobileOpen(false); } : undefined} />;
   const toggle = compact
     ? <SheetTrigger asChild><Button variant="ghost" size="icon-sm" type="button" aria-label={words.open}><Menu /></Button></SheetTrigger>
-    : <IconButton label={sidebarOpen ? (zh ? '隐藏侧栏' : 'Hide sidebar') : (zh ? '显示侧栏' : 'Show sidebar')} size="icon-sm" aria-expanded={sidebarOpen} aria-controls="chapter-pane" onClick={() => setSidebarOpen(value => !value)}>{sidebarOpen ? <PanelLeftClose /> : <PanelLeftOpen />}</IconButton>;
+    : <IconButton ref={sidebarToggle} label={sidebarOpen ? (zh ? '隐藏侧栏' : 'Hide sidebar') : (zh ? '显示侧栏' : 'Show sidebar')} size="icon-sm" aria-expanded={sidebarOpen} aria-controls="chapter-pane" onClick={() => { restoreToggleFocus.current = true; setSidebarOpen(value => !value); }}>{sidebarOpen ? <PanelLeftClose /> : <PanelLeftOpen />}</IconButton>;
   return <TooltipProvider><SidebarProvider className="app-provider min-h-0"><div className="app-shell">
     <Sheet open={mobileOpen} onOpenChange={value => { if (value) selectedRoute.current = false; else searchRequested.current = false; setMobileOpen(value); }}>
-      <div className="app-workspace"><ResizablePanelGroup orientation="horizontal" disabled={compact || !sidebarOpen} data-sidebar-open={sidebarOpen} className="app-panels"><ResizablePanel id="chapter-pane" defaultSize="20%" minSize={224} maxSize={360} className="chapter-pane">{sidebar()}</ResizablePanel><ResizableHandle className="app-resize-handle" /><ResizablePanel id="lesson-pane" defaultSize="80%" minSize={compact ? 0 : 320} className="lesson-pane"><LessonWorkspace controller={controller} snapshot={snapshot} navigationToggle={toggle} /></ResizablePanel></ResizablePanelGroup></div>
+      <div className="app-workspace"><ResizablePanelGroup orientation="horizontal" disabled={compact || !sidebarOpen} data-sidebar-open={sidebarOpen} className="app-panels"><ResizablePanel id="chapter-pane" defaultSize="20%" minSize={224} maxSize={360} className="chapter-pane">{sidebar()}</ResizablePanel><ResizableHandle className="app-resize-handle" /><ResizablePanel id="lesson-pane" defaultSize="80%" minSize={compact ? 0 : 320} className="lesson-pane"><LessonWorkspace controller={controller} snapshot={snapshot} navigationToggle={compact || !sidebarOpen ? toggle : null} /></ResizablePanel></ResizablePanelGroup></div>
       <SheetContent side="left" showCloseButton={false} className="topic-sheet flex w-[min(360px,92vw)] flex-col gap-0 p-0" onOpenAutoFocus={event => { if (searchRequested.current) { event.preventDefault(); mobileSearch.current?.focus({ preventScroll: true }); searchRequested.current = false; } }} onCloseAutoFocus={event => { if (selectedRoute.current) { event.preventDefault(); controller.topics[controller.getSnapshot().topicIndex].pages[controller.getSnapshot().pageIndex].element.focus({ preventScroll: true }); } }}><SheetHeader className="flex-row items-center justify-between border-b px-3 py-2"><div><SheetTitle>{words.contents}</SheetTitle><SheetDescription className="sr-only">{words.help}</SheetDescription></div><SheetClose asChild><Button variant="ghost" size="icon" aria-label={words.close}><X /></Button></SheetClose></SheetHeader><div className="min-h-0 flex-1">{sidebar(true)}</div></SheetContent>
     </Sheet>
     <ComparisonPortals comparisons={comparisons} /><LearningPortals model={model} /><CodeExamplePortals examples={examples} controller={controller} />

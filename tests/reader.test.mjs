@@ -268,6 +268,26 @@ test('Read explanation returns to the topic top while exact-route clicks preserv
   assert.equal(viewport.scrollTop, 90);
 });
 
+test('Read explanation clicks restart the active topic after scrolling to practice without a hash change', () => {
+  const { controller, doc, browser, topics, viewport, historyWrites, attach } = controllerFixture();
+  attach();
+  controller.restoreViewport();
+  viewport.scrollTop = 725;
+  const anchor = { href: '#overview', target: '', hasAttribute: () => false,
+    classList: { contains: name => name === 'learn-panel__read' } };
+  const event = new Event('click', { cancelable: true });
+  Object.defineProperties(event, {
+    button: { value: 0 }, target: { value: { closest: () => anchor } },
+  });
+  doc.dispatchEvent(event);
+  assert.equal(event.defaultPrevented, true);
+  assert.equal(browser.location.hash, '#overview');
+  assert.equal(viewport.scrollTop, 0, 'the explicit explanation action reaches the topic beginning');
+  assert.deepEqual(topics[0].pages[0].element.focusCalls, [{ preventScroll: true }]);
+  assert.ok(topics[0].pages.every(page => page.element.hidden === false));
+  assert.equal(historyWrites.filter(write => write.method === 'pushState').length, 0);
+});
+
 test('Back and Forward preserve each history entry including repeated topic hashes', () => {
   const initialState = { shell: { selected: 'guide' }, navigationCount: 7 };
   const { controller, browser, viewport, attach } = controllerFixture('#overview', initialState);
