@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { build } from 'esbuild';
+import React from 'react';
 import { register, render } from 'pele/core';
 import xychart from 'pele/diagrams/xychart';
 import katex from 'katex';
@@ -16,6 +20,77 @@ function runSource(state) {
   vm.runInNewContext(state.source, { console: { log: value => logged.push(String(value)) } }, { timeout: 100 });
   assert.deepEqual(logged, [state.output], `${state.id} code and displayed result disagree`);
 }
+
+test('vector shafts and tips share capture, preserve the grab offset and retain bounded keyboard control', async () => {
+  const source = await readFile(new URL('../site/symbol-explorers.jsx', import.meta.url), 'utf8');
+  const compiled = await build({
+    stdin: { contents: `${source}\nexport { VectorGeometry, DerivativeGeometry };`, loader: 'jsx', resolveDir: new URL('../site/', import.meta.url).pathname },
+    bundle: true, write: false, platform: 'node', format: 'cjs', packages: 'external',
+  });
+  const loaded = { exports: {} };
+  const require = createRequire(import.meta.url);
+  new Function('require', 'module', 'exports', compiled.outputFiles[0].text)(
+    name => name === 'react' ? { ...React, useRef: value => ({ current: value }) } : require(name), loaded, loaded.exports);
+  const changes = [];
+  const state = symbolExplorerState('dot-product');
+  const figure = loaded.exports.VectorGeometry({ state, update: value => changes.push(value), prefix: 'test', instructions: 'help' });
+  const descendants = node => Array.isArray(node) ? node.flatMap(descendants) : !node || typeof node !== 'object' ? [] : [node, ...descendants(node.props?.children)];
+  const groups = descendants(figure).filter(node => node.type === 'g' && node.props.className?.split(' ').includes('symbol-explorer__vector'));
+  assert.equal(groups.length, 2);
+  for (const group of groups) {
+    const children = descendants(group);
+    assert.ok(children.some(node => Array.isArray(node.props?.keys)), 'the tip shares its arrow hover group');
+  }
+  const component = descendants(groups[0]).find(node => Array.isArray(node.props?.keys));
+  const handle = component.type(component.props);
+  assert.equal(handle.type, 'g', 'the shaft and tip must share the interactive target');
+  assert.ok(descendants(handle).some(node => node.type === 'line' && node.props.className === 'symbol-explorer__vector-hit'));
+  assert.ok(descendants(handle).some(node => node.type === 'circle'));
+  assert.equal(handle.props.role, 'button');
+  assert.equal(handle.props.tabIndex, '0');
+  const captures = new Set();
+  const target = {
+    dataset: {}, focus() {},
+    hasPointerCapture: id => captures.has(id), setPointerCapture: id => captures.add(id), releasePointerCapture: id => captures.delete(id),
+    ownerSVGElement: {
+      getScreenCTM: () => ({ inverse: () => ({}) }),
+      createSVGPoint: () => ({ matrixTransform() { return { x: this.x, y: this.y }; } }),
+    },
+  };
+  const event = (x = 272.4, y = 186.3, extra = {}) => ({ currentTarget: target, target: { tagName: 'line' }, pointerId: 7, isPrimary: true, button: 0, clientX: x, clientY: y, preventDefault() {}, ...extra });
+  handle.props.onPointerDown(event(undefined, undefined, { isPrimary: false }));
+  handle.props.onPointerDown(event(undefined, undefined, { button: 2 }));
+  assert.equal(captures.size, 0);
+  handle.props.onPointerDown(event());
+  assert.equal(target.dataset.dragging, 'true');
+  assert.ok(captures.has(7));
+  assert.deepEqual(changes.at(-1), { ax: 2, ay: 1 }, 'grabbing halfway down the shaft must not shrink the vector');
+  handle.props.onPointerMove(event(309.8, 148.9));
+  assert.deepEqual(changes.at(-1), { ax: 3, ay: 2 }, 'the endpoint follows the pointer delta from its original location');
+  handle.props.onPointerMove(event(10000, 10000));
+  assert.deepEqual(changes.at(-1), { ax: 4, ay: -4 }, 'captured movement outside the arrow still obeys control bounds');
+  assert.equal(target.dataset.dragging, 'true', 'the grip remains visible outside hover during a drag');
+  handle.props.onPointerCancel(event());
+  assert.equal(target.dataset.dragging, undefined);
+  assert.equal(captures.size, 0);
+  const count = changes.length;
+  handle.props.onPointerMove(event());
+  assert.equal(changes.length, count);
+  handle.props.onPointerDown(event());
+  handle.props.onPointerUp(event());
+  assert.equal(target.dataset.dragging, undefined);
+  handle.props.onPointerDown(event());
+  handle.props.onLostPointerCapture(event());
+  assert.equal(target.dataset.dragging, undefined);
+  const lostCount = changes.length;
+  handle.props.onPointerMove(event());
+  assert.equal(changes.length, lostCount, 'lost capture stops movement even before the browser updates its capture flag');
+  handle.props.onKeyDown({ key: 'ArrowUp', preventDefault() {} });
+  assert.deepEqual(changes.at(-1), { ay: 1.1 }, 'keyboard adjustments retain the original step');
+  const derivative = loaded.exports.DerivativeGeometry({ state: symbolExplorerState('derivative'), update() {}, prefix: 'derivative', instructions: 'help' });
+  const derivativePoint = descendants(derivative).find(node => Array.isArray(node.props?.keys));
+  assert.equal(derivativePoint.type(derivativePoint.props).type, 'circle', 'the derivative point keeps its original visible circle target');
+});
 
 test('each family is covered and all generated examples agree with the model at every control corner', () => {
   for (const id of ['dot-product', 'derivative', 'conditional-probability', 'bayes-theorem', 'ml-softmax', 'ml-relu', 'ml-learning-update']) assert.ok(symbolExplorerIds.includes(id));

@@ -42,6 +42,16 @@
 .symbol-explorer__vector text { fill: currentColor; font: 15px var(--font-mono); }
 .symbol-explorer__vector--secondary { color: var(--foreground); }
 .symbol-explorer__vector--secondary line { stroke-dasharray: 7 5; }
+.symbol-explorer__vector .symbol-explorer__vector-hit { stroke: transparent; stroke-width: 24; stroke-dasharray: none; pointer-events: stroke; }
+.symbol-explorer__drag-target { cursor: grab; touch-action: none; outline: none; }
+.symbol-explorer__drag-target:active { cursor: grabbing; }
+.symbol-explorer__drag-target:focus-visible .symbol-explorer__handle { stroke-width: 5; filter: drop-shadow(0 0 2px var(--ring)); }
+.symbol-explorer__vector .symbol-explorer__handle { opacity: 0; }
+.symbol-explorer__vector:hover .symbol-explorer__handle,
+.symbol-explorer__vector .symbol-explorer__drag-target:is(:focus-visible, [data-dragging="true"]) .symbol-explorer__handle { opacity: 1; }
+@media (hover: none) {
+  .symbol-explorer__vector .symbol-explorer__handle { opacity: 1; }
+}
 .symbol-explorer__handle { fill: var(--background); stroke: var(--primary); stroke-width: 3; cursor: grab; touch-action: none; }
 .symbol-explorer__handle--secondary { stroke: var(--foreground); stroke-dasharray: 3 2; }
 .symbol-explorer__handle:active { cursor: grabbing; }

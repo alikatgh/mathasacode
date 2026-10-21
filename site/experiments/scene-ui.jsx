@@ -38,9 +38,10 @@ export function SvgHandle({ x, y, from, label, onMove, onNudge, color = 'var(--s
   const release = event => {
     if (activePointer.current !== event.pointerId) return;
     activePointer.current = null;
+    delete event.currentTarget.dataset.dragging;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   };
-  return <g className="experiment-handle" role="button" tabIndex={0} aria-label={label}
+  return <g className="experiment-handle" role="button" tabIndex={0} aria-label={label} data-arrow={from ? '' : undefined}
     onPointerDown={event => {
       if (!event.isPrimary || event.button !== 0) return;
       event.preventDefault();
@@ -50,10 +51,11 @@ export function SvgHandle({ x, y, from, label, onMove, onNudge, color = 'var(--s
       // vector tip to the middle of its own arrow on pointer-down.
       grabOffset.current = from && local ? { x: local.x - x, y: local.y - y } : { x: 0, y: 0 };
       activePointer.current = event.pointerId;
+      event.currentTarget.dataset.dragging = 'true';
       event.currentTarget.setPointerCapture(event.pointerId);
       move(event);
     }} onPointerMove={move} onPointerUp={release} onPointerCancel={release}
-    onLostPointerCapture={() => { activePointer.current = null; }}
+    onLostPointerCapture={event => { activePointer.current = null; delete event.currentTarget.dataset.dragging; }}
     onKeyDown={event => {
       const deltas = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
       const delta = deltas[event.key];
@@ -64,8 +66,10 @@ export function SvgHandle({ x, y, from, label, onMove, onNudge, color = 'var(--s
     <title>{label}</title>
     {from && <line className="experiment-handle__shaft" x1={from[0]} y1={from[1]} x2={x} y2={y} stroke="transparent" strokeWidth="24" strokeLinecap="round" pointerEvents="stroke" />}
     <circle cx={x} cy={y} r="16" fill="transparent" />
-    <circle className="experiment-handle__ring" cx={x} cy={y} r="11" fill="var(--card)" stroke={color} strokeWidth="1.5" opacity=".75" />
-    <circle cx={x} cy={y} r="5" fill={color} stroke="var(--card)" strokeWidth="1.5" />
+    <g className="experiment-handle__grip">
+      <circle className="experiment-handle__ring" cx={x} cy={y} r="11" fill="var(--card)" stroke={color} strokeWidth="1.5" opacity=".75" />
+      <circle cx={x} cy={y} r="5" fill={color} stroke="var(--card)" strokeWidth="1.5" />
+    </g>
   </g>;
 }
 

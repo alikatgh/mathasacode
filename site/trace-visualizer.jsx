@@ -1,11 +1,32 @@
-import React, { useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { register, render } from 'pele/core';
-import flowchart from 'pele/diagrams/flowchart';
 import xychart from 'pele/diagrams/xychart';
-import { TRACE_VISUAL_LIMITS, traceFlowSource, traceHistory, tracePeleOptions, traceVisualization } from './trace-visualizer-model.mjs';
+import { TRACE_VISUAL_LIMITS, traceHistory, tracePeleOptions, traceVisualization } from './trace-visualizer-model.mjs';
+import { mathTraceScene } from './trace-math-model.mjs';
+import { MathTraceScene } from './trace-math-scenes.jsx';
 
-register(flowchart, xychart);
+register(xychart);
+let katexPromise;
+
+function SceneFormula({ scene }) {
+  const [katex, setKatex] = useState(null);
+  useEffect(() => {
+    let active = true;
+    katexPromise ??= import('katex');
+    katexPromise.then(module => { if (active) setKatex(module.default ?? module); }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+  const html = useMemo(() => {
+    if (!katex || !scene?.formulaTex) return null;
+    try { return katex.renderToString(scene.formulaTex, { displayMode: false, output: 'html', strict: 'error', trust: false, throwOnError: true }); }
+    catch { return null; }
+  }, [katex, scene?.formulaTex]);
+  if (!scene?.formulaText && !scene?.formulaTex) return null;
+  return <div className="trace-visualizer__formula" role="math" aria-label={scene.formulaText || scene.formulaTex}>
+    {html ? <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: html }} /> : <span>{scene.formulaText || scene.formulaTex}</span>}
+  </div>;
+}
 
 function PeleGraphic({ source, label, prefix, kind }) {
   const element = useRef(null);
@@ -88,34 +109,81 @@ function CollectionSnapshot({ collections, prefix }) {
   </figure>;
 }
 
-function TraceVisualizer({ model, onStep }) {
+export function TraceVisualizer({ model, scene, onStep }) {
   const prefix = `trace-visual-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
-  const flow = useMemo(() => traceFlowSource(model), [model]);
-  return <section className="trace-visualizer" aria-labelledby={`${prefix}-title`} data-trace-visual-step={model.frame ? model.step + 1 : undefined}>
-    <div className="trace-visualizer__heading"><h4 id={`${prefix}-title`}>Step visualization</h4><span role="status" aria-live="polite" aria-atomic="true">{model.status === 'running' ? 'Recording…' : model.frame ? `${model.step + 1} / ${model.count}` : 'No recorded steps'}</span></div>
-    {model.status === 'running' ? <p className="trace-visualizer__note">Recording the program. Use Previous and Next in the code panel to replay its steps.</p> : model.frame ? <>
-      <p className="trace-visualizer__note">{model.frame.event === 'return' ? `Recorded return at line ${model.frame.line}.` : `Snapshot before line ${model.frame.line} executes.`} Changes compare this snapshot with the previous recorded step.</p>
-      <PeleGraphic source={flow} prefix={`${prefix}-flow`} kind="flow" label={`${model.previous ? `Recorded step ${model.step}, ${model.previous.event === 'return' ? 'return at' : 'before'} line ${model.previous.line}; then ` : ''}selected step ${model.step + 1}, ${model.frame.event === 'return' ? 'return at' : 'before'} line ${model.frame.line}. ${model.sourceLine}`} />
-      <pre className="trace-visualizer__line" tabIndex={0} aria-label={`Selected recorded line ${model.frame.line}`}><span>{model.frame.line}</span><code>{model.sourceLine || ' '}</code></pre>
-      <ValueChanges changes={model.changes} />
-      <ScalarHistory model={model} prefix={prefix} />
-      <CollectionSnapshot collections={model.collections} prefix={prefix} />
-      <p className="trace-visualizer__note trace-visualizer__preview-note">Values are bounded runtime previews. Equal previews can omit differences; a missing variable means it was not recorded in this snapshot.</p>
+  const root = useRef(null), expectedStep = useRef(model.step);
+  const [playing, setPlaying] = useState(false), [speed, setSpeed] = useState(1);
+  const replayable = Boolean(model.frame && model.status !== 'running' && typeof onStep === 'function');
+  // A manual seek in either panel pauses the same replay. Playback never reruns code.
+  useEffect(() => {
+    if (model.step !== expectedStep.current) setPlaying(false);
+    expectedStep.current = model.step;
+  }, [model.step]);
+  useEffect(() => {
+    const document = root.current?.ownerDocument;
+    if (!document) return;
+    const pause = () => { if (document.hidden) setPlaying(false); };
+    document.addEventListener('visibilitychange', pause);
+    return () => document.removeEventListener('visibilitychange', pause);
+  }, []);
+  useEffect(() => {
+    if (!playing) return;
+    const element = root.current, document = element?.ownerDocument;
+    if (!replayable || model.step >= model.count - 1 || document?.hidden || element?.closest('[hidden]') || !element?.getClientRects().length) {
+      setPlaying(false); return;
+    }
+    const timer = setTimeout(() => {
+      if (document.hidden || element.closest('[hidden]') || !element.getClientRects().length) { setPlaying(false); return; }
+      expectedStep.current = model.step + 1;
+      onStep(model.step + 1);
+    }, 900 / speed);
+    return () => clearTimeout(timer);
+  }, [playing, speed, model.step, model.count, replayable, onStep]);
+  const seek = step => { setPlaying(false); expectedStep.current = step; onStep?.(step); };
+  const togglePlay = () => {
+    if (playing) { setPlaying(false); return; }
+    if (model.step === model.count - 1) { expectedStep.current = 0; onStep?.(0); }
+    else expectedStep.current = model.step;
+    setPlaying(true);
+  };
+  return <section ref={root} className="trace-visualizer" aria-labelledby={`${prefix}-title`} data-trace-visual-step={model.frame ? model.step + 1 : undefined} data-scene-kind={scene?.kind}>
+    <div className="trace-visualizer__heading"><h4 id={`${prefix}-title`}>See the math</h4><span role="status" aria-live={playing ? 'off' : 'polite'} aria-atomic="true">{model.status === 'running' ? 'Recording…' : model.frame ? `Step ${model.step + 1} / ${model.count}` : 'No recorded steps'}</span></div>
+    {model.status === 'running' ? <p className="trace-visualizer__note">Recording the steps for replay…</p> : model.frame ? <>
+      {scene && <>
+        <h5 className="trace-visualizer__scene-title">{scene.title}</h5>
+        <MathTraceScene scene={scene} />
+        <SceneFormula scene={scene} />
+        <p className="trace-visualizer__explanation">{scene.description}</p>
+        {scene.provenance && <p className="trace-visualizer__provenance">{scene.provenance === 'recorded' ? 'Geometry calculated from recorded operands.' : scene.provenance === 'authored' ? 'Mathematical construction from the authored example.' : scene.provenance}</p>}
+      </>}
+      {typeof onStep === 'function' && <div className="trace-visualizer__player" role="group" aria-label="Visualization replay controls">
+        <div className="trace-visualizer__transport">
+          <button type="button" aria-label="Restart visualized steps" disabled={!replayable || model.step === 0} onClick={() => seek(0)}><span aria-hidden="true">↤</span></button>
+          <button type="button" aria-label="Previous visualized step" disabled={!replayable || model.step === 0} onClick={() => seek(model.step - 1)}><span aria-hidden="true">←</span></button>
+          <button type="button" className="trace-visualizer__play" aria-label={playing ? 'Pause visualization' : 'Play visualization'} disabled={!replayable || model.count < 2} onClick={togglePlay}><span aria-hidden="true">{playing ? 'Ⅱ' : '▶'}</span>{playing ? 'Pause' : 'Play'}</button>
+          <button type="button" aria-label="Next visualized step" disabled={!replayable || model.step >= model.count - 1} onClick={() => seek(model.step + 1)}><span aria-hidden="true">→</span></button>
+          <label className="trace-visualizer__speed"><span className="trace-visualizer__sr-only">Replay speed</span><select aria-label="Replay speed" value={speed} onChange={event => setSpeed(Number(event.target.value))}><option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option></select></label>
+        </div>
+        <input type="range" aria-label="Visualization step" min={1} max={Math.max(1, model.count)} value={model.step + 1} disabled={!replayable || model.count < 2} onChange={event => seek(Number(event.target.value) - 1)} />
+        <div className="trace-visualizer__position"><span>{model.frame.event === 'return' ? 'Return recorded' : 'Recorded state'} at line {model.frame.line}</span><span>{model.step + 1} / {model.count}</span></div>
+      </div>}
+      <details className="trace-visualizer__recorded"><summary>Recorded values &amp; history</summary>
+        <ValueChanges changes={model.changes} />
+        <ScalarHistory model={model} prefix={prefix} />
+        <CollectionSnapshot collections={model.collections} prefix={prefix} />
+        <p className="trace-visualizer__note trace-visualizer__preview-note">Runtime previews can omit data. A missing variable means it was not recorded in this snapshot.</p>
+      </details>
     </> : <p className="trace-visualizer__note">{model.mappingUnavailable ? 'Recorded steps could not be matched to this source.' : model.status === 'success' ? 'This execution recorded no replayable steps.' : 'No replayable steps were recorded before execution stopped.'}</p>}
     {model.truncated && <p className="trace-visualizer__notice">Recording reached its limit. Only the retained steps are shown.</p>}
     {model.frame && model.status !== 'success' && model.status !== 'running' && <p className="trace-visualizer__notice">Execution stopped early. These are the recorded steps before it stopped.</p>}
     {model.warnings.length > 0 && <details className="trace-visualizer__warnings"><summary>Recording limitations</summary><ul>{model.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>}
-    {typeof onStep === 'function' && <div className="trace-visualizer__replay" role="group" aria-label="Visualization replay controls">
-      <button type="button" aria-label="Previous visualized step" disabled={!model.frame || model.status === 'running' || model.step === 0} onClick={() => onStep(model.step - 1)}><span aria-hidden="true">←</span> Previous</button>
-      <span aria-hidden="true">{model.frame ? `${model.step + 1} / ${model.count}` : '—'}</span>
-      <button type="button" aria-label="Next visualized step" disabled={!model.frame || model.status === 'running' || model.step >= model.count - 1} onClick={() => onStep(model.step + 1)}>Next <span aria-hidden="true">→</span></button>
-    </div>}
   </section>;
 }
 
 /** Add replay below authored mathematical prose, including after comparison relocation. */
 export function TraceVisualizerPortal({ example, trace, source, language, onStep }) {
   const model = useMemo(() => traceVisualization(trace, source, language), [trace, source, language]);
+  const scene = useMemo(() => model?.frame ? mathTraceScene({ example, model, source, language }) : null, [example, model, source, language]);
   const [host, setHost] = useState(null);
   const element = example?.element;
   const codeHost = example?.host;
@@ -143,7 +211,7 @@ export function TraceVisualizerPortal({ example, trace, source, language, onStep
       mount.remove();
     };
   }, [element, codeHost, active, source, language]);
-  return active && host ? createPortal(<TraceVisualizer model={model} onStep={onStep} />, host) : null;
+  return active && host ? createPortal(<TraceVisualizer model={model} scene={scene} onStep={onStep} />, host) : null;
 }
 
 export default TraceVisualizerPortal;

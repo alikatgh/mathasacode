@@ -167,7 +167,7 @@ test('arrow shaft dragging removes screen scaling, keeps its grab offset, and re
   };
   let focusCalls = 0;
   const target = {
-    ownerSVGElement: svg, focus() { focusCalls++; },
+    ownerSVGElement: svg, dataset: {}, focus() { focusCalls++; },
     setPointerCapture: id => captures.add(id), hasPointerCapture: id => captures.has(id),
     releasePointerCapture: id => captures.delete(id),
   };
@@ -180,6 +180,7 @@ test('arrow shaft dragging removes screen scaling, keeps its grab offset, and re
   handle.props.onPointerDown(event(180, 90));
   assert.equal(focusCalls, 1);
   assert.ok(captures.has(7));
+  assert.equal(target.dataset.dragging, 'true', 'capture retains the visible grip after the pointer leaves the arrow');
   assert.deepEqual(moves.at(-1), { x: 80, y: 40 }, 'grabbing the shaft does not shrink the vector');
   handle.props.onPointerMove(event(200, 110));
   assert.deepEqual(moves.at(-1), { x: 90, y: 50 }, '20 screen pixels are 10 SVG units');
@@ -187,13 +188,16 @@ test('arrow shaft dragging removes screen scaling, keeps its grab offset, and re
   assert.equal(moves.length, 2, 'a second pointer cannot take over');
   handle.props.onPointerCancel(event(200, 110));
   assert.equal(captures.size, 0);
+  assert.equal(target.dataset.dragging, undefined, 'cancellation removes the active grip');
   handle.props.onPointerMove(event(220, 130));
   assert.equal(moves.length, 2, 'cancelled dragging is finished');
   handle.props.onPointerDown(event(180, 90));
   handle.props.onPointerUp(event(180, 90));
   assert.equal(captures.size, 0);
+  assert.equal(target.dataset.dragging, undefined);
   handle.props.onPointerDown(event(180, 90));
-  handle.props.onLostPointerCapture();
+  handle.props.onLostPointerCapture(event(180, 90));
+  assert.equal(target.dataset.dragging, undefined, 'lost capture removes the active grip');
   handle.props.onPointerMove(event(220, 130));
   assert.equal(moves.length, 4, 'lost capture ends dragging');
   const key = event(0, 0, { key: 'ArrowUp' });

@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ArrowLeft, ArrowRight, BookOpen, Check, ChevronDown, Code2, FileText, FlaskConical, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookOpen, Check, ChevronDown, FileText, FlaskConical, Home, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Settings2, Sun, X } from 'lucide-react';
+import { Popover } from 'radix-ui';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import { NativeSelect, NativeSelectOption } from './components/ui/native-select';
@@ -33,20 +34,27 @@ const words = zh ? {
   subtitle: '写给程序员的数学指南', reference: '数学参考', search: '搜索主题或符号…', clear: '清除搜索',
   contents: '全部主题', noResults: '没有找到匹配的主题。', progress: '练习进度', topics: '主题',
   close: '关闭主题导航', open: '打开主题导航', nextTopic: '下一主题',
-  practice: '练习', of: '/', versions: '指南版本',
+  practice: '练习', of: '/', versions: '指南版本', guideLabel: '指南', appearance: '外观', light: '浅色', dark: '深色',
   map: '概念图', completed: '已完成', source: '源代码', overview: '概览', lesson: '指南',
-  resources: '项目资料', contribute: '贡献', license: '许可证', local: '本地运行', blog: '博客', changelog: '更新日志', theme: '切换主题', help: '搜索主题名称或数学符号。'
+  resources: '项目资料', settings: '设置', contribute: '贡献', license: '许可证', local: '本地运行', blog: '博客', changelog: '更新日志', theme: '切换主题', help: '搜索主题名称或数学符号。'
 } : {
   subtitle: 'A programmer’s field guide', reference: 'The reference', search: 'Find a topic or symbol…', clear: 'Clear search',
   contents: 'All topics', noResults: 'No matching topics. Try another term.', progress: 'Your practice', topics: 'topics',
   close: 'Close topic navigation', open: 'Open topic navigation', nextTopic: 'Next topic',
-  practice: 'Practice', of: 'of', versions: 'Guide version',
+  practice: 'Practice', of: 'of', versions: 'Guide version', guideLabel: 'Guide', appearance: 'Appearance', light: 'Light', dark: 'Dark',
   map: 'Concept map', completed: 'Completed', source: 'Source', overview: 'Overview', lesson: 'Guide',
-  resources: 'Project', contribute: 'Contributing', license: 'License', local: 'Run locally', blog: 'Blog', changelog: 'Changelog', theme: 'Toggle theme', help: 'Search topic names or mathematical symbols.'
+  resources: 'Project', settings: 'Settings', contribute: 'Contributing', license: 'License', local: 'Run locally', blog: 'Blog', changelog: 'Changelog', theme: 'Toggle theme', help: 'Search topic names or mathematical symbols.'
 };
 const titleCase = text => text ? text[0].toUpperCase() + text.slice(1) : '';
 const href = id => `#${encodeURIComponent(id)}`;
-const resources = [['/CONTRIBUTING.html', words.contribute], ['/run-locally.html', words.local], ['/LICENSE.html', words.license], ['/blog.html', words.blog], ['/changelog.html', words.changelog]];
+const sourceUrl = 'https://github.com/alikatgh/mathasacode';
+const resources = [[sourceUrl, words.source], ['/CONTRIBUTING.html', words.contribute], ['/run-locally.html', words.local], ['/LICENSE.html', words.license], ['/blog.html', words.blog], ['/changelog.html', words.changelog]];
+const learningSections = [
+  ['reference', zh ? '数学' : 'Math', zh ? '数学参考' : 'Math reference', '/', BookOpen],
+  ['ml', zh ? '机器学习' : 'ML', zh ? '机器学习与深度学习' : 'ML & deep learning', '/machine-learning.html', FlaskConical],
+  ['cheatsheet', zh ? '符号' : 'Symbols', zh ? '符号速查表 · English' : 'Symbol cheatsheet', '/cheatsheet.html', FileText]
+];
+const sectionHref = (id, url) => id === 'reference' && section === 'reference' ? guideVersionPath(location.pathname) : url;
 
 export function guideVersionPath(pathname) {
   const path = pathname.replace(/\/+$/, '');
@@ -58,6 +66,35 @@ export function guideVersionPath(pathname) {
 
 function IconButton({ label, children, ...props }) {
   return <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" type="button" aria-label={label} {...props}>{children}</Button></TooltipTrigger><TooltipContent>{label}</TooltipContent></Tooltip>;
+}
+
+function IconLink({ label, children, ...props }) {
+  return <Tooltip><TooltipTrigger asChild><a aria-label={label} {...props}>{children}</a></TooltipTrigger><TooltipContent side="right">{label}</TooltipContent></Tooltip>;
+}
+
+function SidebarSettings({ children, compact = false }) {
+  return <Popover.Root><Popover.Trigger asChild><button type="button" className={`sidebar-settings-trigger${compact ? ' sidebar-settings-trigger--icon' : ''}`} aria-label={words.settings} title={compact ? words.settings : undefined}><Settings2 aria-hidden="true" />{!compact && <><span>{words.settings}</span><ChevronDown aria-hidden="true" /></>}</button></Popover.Trigger>
+    <Popover.Portal><Popover.Content side="top" align="start" sideOffset={8} collisionPadding={12} className="sidebar-settings-popover" aria-label={words.settings}>
+      <div className="sidebar-settings-heading"><span>{words.settings}</span><Popover.Close asChild><button type="button" aria-label={zh ? '关闭设置' : 'Close settings'}><X aria-hidden="true" /></button></Popover.Close></div>
+      {children}
+      <nav className="sidebar-project-links" aria-label={words.resources}>{resources.map(([url, label]) => <a key={url} href={url} aria-current={location.pathname.replace(/\.html$/, '') === url.replace(/\.html$/, '') ? 'page' : undefined}>{label}</a>)}</nav>
+    </Popover.Content></Popover.Portal>
+  </Popover.Root>;
+}
+
+function SidebarRail({ toggle, settings }) {
+  return <aside className="sidebar-rail" aria-label={zh ? '主题导航' : 'Topic navigation'}>
+    <div className="sidebar-rail-top">
+      {toggle}
+      <IconLink className="sidebar-rail-home" href="/" label={zh ? 'Math as Code 首页' : 'Math as Code home'}><Home aria-hidden="true" /></IconLink>
+    </div>
+    <nav className="sidebar-rail-sections" aria-label={zh ? '学习内容' : 'Learning sections'}>
+      {learningSections.map(([id, , fullLabel, url, Icon]) => <IconLink key={id} href={sectionHref(id, url)} label={fullLabel} aria-current={section === id ? 'page' : undefined}><Icon aria-hidden="true" /></IconLink>)}
+    </nav>
+    <div className="sidebar-rail-bottom">
+      <SidebarSettings compact>{settings}</SidebarSettings>
+    </div>
+  </aside>;
 }
 
 function TopicSidebar({ controller, snapshot, labels, model, searchRef, onNavigate, settings, sidebarToggle, mobile = false }) {
@@ -87,16 +124,11 @@ function TopicSidebar({ controller, snapshot, labels, model, searchRef, onNaviga
     if (row.top < panel.top) viewport.scrollTop += row.top - panel.top - 8;
     else if (row.bottom > panel.bottom) viewport.scrollTop += row.bottom - panel.bottom + 8;
   }, [snapshot.topicIndex, normalized, expanded]);
-  const sections = [
-    ['reference', zh ? '数学' : 'Math', zh ? '数学参考' : 'Math reference', '/', BookOpen],
-    ['ml', zh ? '机器学习' : 'ML', zh ? '机器学习与深度学习' : 'ML & deep learning', '/machine-learning.html', FlaskConical],
-    ['cheatsheet', zh ? '符号' : 'Symbols', zh ? '符号速查表 · English' : 'Symbol cheatsheet', '/cheatsheet.html', FileText]
-  ];
   return <Sidebar collapsible="none" className="topic-sidebar w-full" aria-label={words.contents}>
-    <SidebarHeader className="gap-2 p-3 pb-1">
+    <SidebarHeader className="sidebar-header">
       <div className="sidebar-brand-row"><a className="sidebar-brand" href="/">Math as Code<span>{words.subtitle}</span></a>{sidebarToggle}</div>
       <nav aria-label={zh ? '学习内容' : 'Learning sections'} className="sidebar-sections">
-        {sections.map(([id, label, fullLabel, url, Icon]) => <a key={id} href={id === 'reference' && section === 'reference' ? guideVersionPath(location.pathname) : url} aria-label={fullLabel} title={fullLabel} aria-current={section === id ? 'page' : undefined}><Icon aria-hidden="true" /><span>{label}</span></a>)}
+        {learningSections.map(([id, label, fullLabel, url, Icon]) => <a key={id} href={sectionHref(id, url)} aria-label={fullLabel} title={fullLabel} aria-current={section === id ? 'page' : undefined}><Icon aria-hidden="true" /><span>{label}</span></a>)}
       </nav>
       <div className="sidebar-search relative flex items-center"><Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" aria-hidden="true" /><Input ref={searchRef} type="search" className="pr-10 pl-9" aria-label={words.search} placeholder={words.search} value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape' && !mobile) { setQuery(''); event.stopPropagation(); } }} />{query ? <Button type="button" variant="ghost" size="icon-sm" className="absolute right-1" aria-label={words.clear} onClick={() => { setQuery(''); searchRef.current?.focus(); }}><X /></Button> : !mobile && <kbd className="pointer-events-none absolute right-3 text-[10px] text-muted-foreground">⌘ K</kbd>}</div>
     </SidebarHeader>
@@ -121,10 +153,9 @@ function TopicSidebar({ controller, snapshot, labels, model, searchRef, onNaviga
         </nav>
       </ScrollArea>
     </SidebarContent>
-    <SidebarFooter className="gap-3 border-t p-3">
-      {progress.total > 0 && <div className="space-y-1.5 px-1"><div className="flex items-center justify-between text-xs"><span className="flex items-center gap-2 font-medium"><BookOpen className="size-3.5 text-primary" />{words.progress}</span><span className="font-mono text-[10px] text-muted-foreground">{progress.done}/{progress.total}</span></div><Progress value={progress.done / progress.total * 100} aria-label={`${progress.done} ${words.of} ${progress.total} ${words.completed}`} className="h-1" /><p className="text-[10px] leading-relaxed text-muted-foreground">{learningText[model.language][progress.available ? 'saved' : 'unsaved']}</p></div>}
-      {settings}
-      <div className="flex flex-wrap gap-x-3 gap-y-1">{resources.map(([url, label]) => <Button key={url} asChild variant="link" size="xs" className="h-auto p-0 text-[10px] text-muted-foreground"><a href={url} aria-current={location.pathname.replace(/\.html$/, '') === url.replace(/\.html$/, '') ? 'page' : undefined}>{label}</a></Button>)}</div>
+    <SidebarFooter className="sidebar-utilities border-t p-3">
+      {progress.total > 0 && <div className="sidebar-progress"><div className="sidebar-progress-heading"><span>{words.progress}</span><span className="sidebar-progress-count">{progress.done}/{progress.total}</span></div><Progress value={progress.done / progress.total * 100} aria-label={`${progress.done} ${words.of} ${progress.total} ${words.completed}`} className="h-1" /><p className="sidebar-progress-note">{learningText[model.language][progress.available ? 'saved' : 'unsaved']}</p></div>}
+      <SidebarSettings>{settings}</SidebarSettings>
     </SidebarFooter>
   </Sidebar>;
 }
@@ -206,11 +237,9 @@ function App({ controller, labels, model, examples, comparisons, symbolExamples,
     if (target.language) changeExampleLanguage(window, target.language);
     if (target.path) location.href = target.path;
   };
-  const settings = <div className="sidebar-settings flex items-center gap-1">
-    <a href="/" className="sidebar-logo" aria-label="Math as Code"><span className="sidebar-logo__crop" aria-hidden="true"><img className="sidebar-logo__image" src="/assets/logo.png" width="1254" height="1254" alt="" decoding="async" /></span></a>
-    <NativeSelect size="sm" aria-label={words.versions} value={version} onChange={event => selectGuideVersion(event.target.value)}><NativeSelectOption value="javascript">English · JS</NativeSelectOption><NativeSelectOption value="python">English · Python</NativeSelectOption><NativeSelectOption value="c">English · C</NativeSelectOption><NativeSelectOption value="rust">English · Rust</NativeSelectOption><NativeSelectOption value="zh">中文</NativeSelectOption></NativeSelect>
-    <IconButton label={words.theme} onClick={() => setDark(value => !value)}>{dark ? <Sun /> : <Moon />}</IconButton>
-    <IconButton label={words.source} asChild><a href="https://github.com/alikatgh/mathasacode"><Code2 /></a></IconButton>
+  const settings = <div className="sidebar-settings">
+    <div className="sidebar-setting-row"><span className="sidebar-setting-label">{words.guideLabel}</span><NativeSelect size="sm" aria-label={words.versions} value={version} onChange={event => selectGuideVersion(event.target.value)}><NativeSelectOption value="javascript">English · JS</NativeSelectOption><NativeSelectOption value="python">English · Python</NativeSelectOption><NativeSelectOption value="c">English · C</NativeSelectOption><NativeSelectOption value="rust">English · Rust</NativeSelectOption><NativeSelectOption value="zh">中文</NativeSelectOption></NativeSelect></div>
+    <div className="sidebar-setting-row"><span className="sidebar-setting-label">{words.appearance}</span><div className="sidebar-appearance" role="group" aria-label={words.appearance}><button type="button" aria-pressed={!dark} onClick={() => setDark(false)}><Sun aria-hidden="true" /><span>{words.light}</span></button><button type="button" aria-pressed={dark} onClick={() => setDark(true)}><Moon aria-hidden="true" /><span>{words.dark}</span></button></div></div>
   </div>;
   const sidebar = (mobile = false) => <TopicSidebar controller={controller} snapshot={snapshot} labels={labels} model={model} searchRef={mobile ? mobileSearch : search} mobile={mobile} settings={settings} sidebarToggle={!mobile && !compact && sidebarOpen ? toggle : undefined} onNavigate={mobile ? () => { selectedRoute.current = true; setMobileOpen(false); } : undefined} />;
   const toggle = compact
@@ -218,7 +247,7 @@ function App({ controller, labels, model, examples, comparisons, symbolExamples,
     : <IconButton ref={sidebarToggle} label={sidebarOpen ? (zh ? '隐藏侧栏' : 'Hide sidebar') : (zh ? '显示侧栏' : 'Show sidebar')} size="icon-sm" aria-expanded={sidebarOpen} aria-controls="chapter-pane" onClick={() => { restoreToggleFocus.current = true; setSidebarOpen(value => !value); }}>{sidebarOpen ? <PanelLeftClose /> : <PanelLeftOpen />}</IconButton>;
   return <TooltipProvider><SidebarProvider className="app-provider min-h-0"><div className="app-shell">
     <Sheet open={mobileOpen} onOpenChange={value => { if (value) selectedRoute.current = false; else searchRequested.current = false; setMobileOpen(value); }}>
-      <div className="app-workspace"><ResizablePanelGroup orientation="horizontal" disabled={compact || !sidebarOpen} data-sidebar-open={sidebarOpen} className="app-panels"><ResizablePanel id="chapter-pane" defaultSize="20%" minSize={224} maxSize={360} className="chapter-pane">{sidebar()}</ResizablePanel><ResizableHandle className="app-resize-handle" /><ResizablePanel id="lesson-pane" defaultSize="80%" minSize={compact ? 0 : 320} className="lesson-pane"><LessonWorkspace controller={controller} snapshot={snapshot} navigationToggle={compact || !sidebarOpen ? toggle : null} /></ResizablePanel></ResizablePanelGroup></div>
+      <div className="app-workspace" data-sidebar-open={sidebarOpen}>{!compact && !sidebarOpen && <SidebarRail toggle={toggle} settings={settings} />}<ResizablePanelGroup orientation="horizontal" disabled={compact || !sidebarOpen} data-sidebar-open={sidebarOpen} className="app-panels"><ResizablePanel id="chapter-pane" defaultSize="20%" minSize={224} maxSize={360} className="chapter-pane">{sidebar()}</ResizablePanel><ResizableHandle className="app-resize-handle" /><ResizablePanel id="lesson-pane" defaultSize="80%" minSize={compact ? 0 : 320} className="lesson-pane"><LessonWorkspace controller={controller} snapshot={snapshot} navigationToggle={compact ? toggle : null} /></ResizablePanel></ResizablePanelGroup></div>
       <SheetContent side="left" showCloseButton={false} className="topic-sheet flex w-[min(360px,92vw)] flex-col gap-0 p-0" onOpenAutoFocus={event => { if (searchRequested.current) { event.preventDefault(); mobileSearch.current?.focus({ preventScroll: true }); searchRequested.current = false; } }} onCloseAutoFocus={event => { if (selectedRoute.current) { event.preventDefault(); controller.topics[controller.getSnapshot().topicIndex].pages[controller.getSnapshot().pageIndex].element.focus({ preventScroll: true }); } }}><SheetHeader className="flex-row items-center justify-between border-b px-3 py-2"><div><SheetTitle>{words.contents}</SheetTitle><SheetDescription className="sr-only">{words.help}</SheetDescription></div><SheetClose asChild><Button variant="ghost" size="icon" aria-label={words.close}><X /></Button></SheetClose></SheetHeader><div className="min-h-0 flex-1">{sidebar(true)}</div></SheetContent>
     </Sheet>
     <ComparisonPortals comparisons={comparisons} /><LearningPortals model={model} /><CodeExamplePortals examples={examples} controller={controller} />

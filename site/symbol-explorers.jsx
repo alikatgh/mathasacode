@@ -105,14 +105,20 @@ function PlaneAxes({ plane, xTicks, yTicks, yLabel = 'y' }) {
 }
 
 /** Pointer capture keeps the drag local; sliders provide an equivalent input. */
-function DragPoint({ position, values, label, keys, plane, state, update, secondary = false, instructions }) {
-  const move = (event, initial = false) => {
-    if (!initial && !event.currentTarget.hasPointerCapture(event.pointerId)) return;
+function DragPoint({ position, from, values, label, keys, plane, state, update, secondary = false, instructions }) {
+  const drag = useRef(null);
+  const move = event => {
+    if (drag.current?.pointerId !== event.pointerId || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
     const point = fromPointer(event, plane);
     if (!point) return;
-    update(Object.fromEntries(keys.map((key, i) => [key, boundExplorerControl(state.id, key, point[i])])));
+    update(Object.fromEntries(keys.map((key, i) => [key, boundExplorerControl(state.id, key, point[i] - drag.current.offset[i])])));
   };
-  const end = event => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); };
+  const end = event => {
+    if (drag.current?.pointerId !== event.pointerId) return;
+    drag.current = null;
+    delete event.currentTarget.dataset.dragging;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  };
   const keyDown = event => {
     const moves = { ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [1, 1], ArrowDown: [1, -1] };
     const item = moves[event.key];
@@ -121,10 +127,37 @@ function DragPoint({ position, values, label, keys, plane, state, update, second
     const key = keys[item[0]], control = state.controls.find(item => item.key === key);
     update({ [key]: boundExplorerControl(state.id, key, state.parameters[key] + item[1] * control.step * (event.shiftKey ? 5 : 1)) });
   };
-  return <circle className={`symbol-explorer__handle${secondary ? ' symbol-explorer__handle--secondary' : ''}`} cx={position[0]} cy={position[1]} r="11" tabIndex="0" role="button"
-    aria-label={`${label}: ${values.map(n).join(', ')}. Drag or use arrow keys.`} aria-describedby={instructions} aria-keyshortcuts={keys.length > 1 ? 'ArrowLeft ArrowRight ArrowUp ArrowDown' : 'ArrowLeft ArrowRight'}
-    onKeyDown={keyDown} onPointerDown={event => { if (event.button !== 0) return; event.preventDefault(); event.currentTarget.focus(); event.currentTarget.setPointerCapture(event.pointerId); move(event, true); }}
-    onPointerMove={move} onPointerUp={end} onPointerCancel={end} />;
+  const interaction = {
+    tabIndex: '0', role: 'button',
+    'aria-label': `${label}: ${values.map(n).join(', ')}. Drag or use arrow keys.`,
+    'aria-describedby': instructions,
+    'aria-keyshortcuts': keys.length > 1 ? 'ArrowLeft ArrowRight ArrowUp ArrowDown' : 'ArrowLeft ArrowRight',
+    onKeyDown: keyDown,
+    onPointerDown: event => {
+      if (event.button !== 0 || event.isPrimary === false) return;
+      const point = fromPointer(event, plane);
+      if (!point) return;
+      event.preventDefault();
+      event.currentTarget.focus();
+      // A shaft grab moves the endpoint by the pointer delta; it must not
+      // replace the vector with the coordinates of its own midpoint.
+      drag.current = { pointerId: event.pointerId, offset: from ? point.map((value, i) => value - values[i]) : [0, 0] };
+      event.currentTarget.dataset.dragging = 'true';
+      event.currentTarget.setPointerCapture(event.pointerId);
+      move(event);
+    },
+    onPointerMove: move, onPointerUp: end, onPointerCancel: end,
+    onLostPointerCapture: event => {
+      if (drag.current?.pointerId !== event.pointerId) return;
+      drag.current = null;
+      delete event.currentTarget.dataset.dragging;
+    },
+  };
+  const circle = { className: `symbol-explorer__handle${secondary ? ' symbol-explorer__handle--secondary' : ''}`, cx: position[0], cy: position[1], r: '11' };
+  return from ? <g className="symbol-explorer__drag-target" {...interaction}>
+    <line className="symbol-explorer__vector-hit" x1={from[0]} y1={from[1]} x2={position[0]} y2={position[1]} />
+    <circle {...circle} />
+  </g> : <circle {...circle} {...interaction} />;
 }
 
 function VectorGeometry({ state, update, prefix, instructions }) {
@@ -140,9 +173,9 @@ function VectorGeometry({ state, update, prefix, instructions }) {
         return <g key={vector.label} className={vector.secondary ? 'symbol-explorer__vector symbol-explorer__vector--secondary' : 'symbol-explorer__vector'}>
           <line x1={origin[0]} y1={origin[1]} x2={end[0]} y2={end[1]} markerEnd={`url(#${prefix}-arrow)`} />
           <text x={end[0] + 13} y={end[1] - 13}>{vector.label}</text>
+          {vector.keys && <DragPoint from={origin} position={end} values={vector.values} label={`Vector ${vector.label} tip`} keys={vector.keys} plane={plane} state={state} update={update} secondary={vector.secondary} instructions={instructions} />}
         </g>;
       })}
-      {state.vectors.filter(vector => vector.keys).map(vector => <DragPoint key={vector.label} position={mapPoint(plane, ...vector.values)} values={vector.values} label={`Vector ${vector.label} tip`} keys={vector.keys} plane={plane} state={state} update={update} secondary={vector.secondary} instructions={instructions} />)}
     </svg>
     <figcaption>{description}. Solid line: {state.vectors[0].label}{state.vectors[1] ? `; dashed line: ${state.vectors[1].label}` : ''}. Both axes use the same scale.</figcaption>
   </figure>;
@@ -193,7 +226,7 @@ function Explorer({ entry }) {
   };
   return <section className="symbol-explorer" data-symbol-explorer-panel={id} aria-labelledby={`${prefix}-title`}>
     <div className="symbol-explorer__heading"><h4 id={`${prefix}-title`}>{state.title}</h4><button type="button" onClick={() => change(initialExplorerParameters(id), true)}>Reset graph</button></div>
-    <p className="symbol-explorer__instructions" id={`${prefix}-instructions`}>{state.kind === 'vectors' ? 'Drag a vector tip, use its arrow keys, or move the sliders. Shift + arrow moves five steps.' : state.kind === 'derivative' ? 'Drag the curve point horizontally, use Left / Right, or move the sliders.' : 'Move a slider to update the chart, formula and runnable code.'}</p>
+    <p className="symbol-explorer__instructions" id={`${prefix}-instructions`}>{state.kind === 'vectors' ? 'Drag a vector arrow or tip, use its arrow keys, or move the sliders. Shift + arrow moves five steps.' : state.kind === 'derivative' ? 'Drag the curve point horizontally, use Left / Right, or move the sliders.' : 'Move a slider to update the chart, formula and runnable code.'}</p>
     <div className="symbol-explorer__layout">
       <div className="symbol-explorer__visual">
         {state.kind === 'vectors' ? <VectorGeometry state={state} update={change} prefix={prefix} instructions={`${prefix}-instructions`} /> : state.kind === 'derivative' ? <DerivativeGeometry state={state} update={change} prefix={prefix} instructions={`${prefix}-instructions`} /> : <PelePlot state={state} prefix={prefix} />}

@@ -37,6 +37,7 @@ export function traceCollection(preview) {
   if (!matrix && !value.every(scalar)) return null;
   const rows = matrix ? value : [value];
   const previews = preview.match(/-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/g) ?? [];
+  if (previews.some(item => /^-?\d+$/.test(item) && !Number.isSafeInteger(Number(item)))) return null;
   let total = 0;
   const cells = [];
   rows.forEach((row, r) => row.forEach((number, c) => {

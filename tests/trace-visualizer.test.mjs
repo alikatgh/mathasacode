@@ -136,7 +136,8 @@ test('numeric array and matrix cells are bounded and incomplete/non-numeric prev
   const long = traceCollection(JSON.stringify(Array.from({ length: 100 }, (_, i) => i)));
   assert.equal(long.total, 100);
   assert.equal(long.cells.length, TRACE_VISUAL_LIMITS.collectionCells);
-  assert.deepEqual(traceCollection('[9007199254740993, -0, 1.00]').cells.map(item => item.preview), ['9007199254740993', '-0', '1.00']);
+  assert.equal(traceCollection('[9007199254740993, -0, 1.00]'), null, 'Do not turn an exact large integer into rounded geometry');
+  assert.deepEqual(traceCollection('[9007199254740991, -0, 1.00]').cells.map(item => item.preview), ['9007199254740991', '-0', '1.00']);
   for (const preview of ['[]', '[[1], [2, 3]]', '[1, …]', '[NaN]', '[1e999]', '[null]', '[true]', '["<script>"]', '(1, 2)', '[1, [2]]', '['.repeat(5000)]) assert.equal(traceCollection(preview), null, preview.slice(0, 40));
 });
 

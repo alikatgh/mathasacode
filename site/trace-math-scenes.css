@@ -1,0 +1,39 @@
+.math-scene {
+  --math-a: #18764f;
+  --math-b: #2466b0;
+  --math-c: #9a6919;
+  --math-result: #a13385;
+  --math-ink: var(--foreground, #252b2d);
+  --math-muted: var(--muted-foreground, #657174);
+  --math-grid: var(--border, #dbe0df);
+  --math-paper: var(--background, #fff);
+  width: 100%;
+  min-width: 0;
+  max-width: 560px;
+  margin: 0 auto;
+}
+.dark .math-scene,
+[data-theme="dark"] .math-scene {
+  --math-a: #66d5a4;
+  --math-b: #83b7ff;
+  --math-c: #e6bb69;
+  --math-result: #e899d3;
+}
+.math-scene svg { display: block; width: 100%; height: auto; overflow: hidden; }
+.math-scene__label { font: 13px/1.3 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; }
+.math-scene__small { font-size: 12px; }
+.math-scene__tiny { font-size: 11px; }
+.math-scene__result { font-size: 15px; font-weight: 600; }
+.math-scene :is(line, path, rect, circle, ellipse) { vector-effect: non-scaling-stroke; }
+.math-scene__axis path { vector-effect: non-scaling-stroke; }
+@container trace-visualizer (max-width: 320px) {
+  .math-scene__label { font-size: 18px; }
+  .math-scene__small { font-size: 17px; }
+  .math-scene__tiny { font-size: 14px; }
+  .math-scene__result { font-size: 22px; }
+  .math-scene__long { font-size: 13px; }
+  .math-scene__notice { font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .math-scene *, .math-scene *::before, .math-scene *::after { animation: none !important; transition: none !important; }
+}
