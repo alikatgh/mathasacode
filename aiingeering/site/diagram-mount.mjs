@@ -20,14 +20,21 @@ export function mountCurriculumDiagrams(element, { renderDiagram = renderCurricu
     rendered: false,
   })).filter(record => record.viewport && record.output && record.details && record.source);
   const current = (record, revision) => active && element.isConnected && element.contains(record.figure) && revision === record.revision;
-  async function update(record) {
+  function update(record) {
     if (!active || !element.contains(record.figure)) return;
     const width = Math.floor(record.viewport.clientWidth) || 720;
     if (record.width === width) return;
     record.width = width;
-    const revision = ++record.revision;
+    record.revision++;
+    if (record.busy) { record.controller.abort(); return; }
+    void renderLatest(record);
+  }
+  async function renderLatest(record) {
+    const { width, revision } = record;
+    record.busy = true;
+    record.controller = new AbortController();
     try {
-      const result = await renderDiagram(record.source, { width, idPrefix: record.idPrefix });
+      const result = await renderDiagram(record.source, { width, idPrefix: record.idPrefix, signal: record.controller.signal });
       if (!current(record, revision)) return;
       record.output.innerHTML = result.svg;
       record.output.style.width = `${result.width}px`;
@@ -43,6 +50,12 @@ export function mountCurriculumDiagrams(element, { renderDiagram = renderCurricu
         record.status.textContent = 'Diagram unavailable. The original source is shown below.';
         record.status.hidden = false;
       }
+    } finally {
+      record.busy = false;
+      record.controller = undefined;
+      // A slow local chunk load may span many resize events. Render only the
+      // latest width once the in-flight request settles, never every old width.
+      if (active && element.isConnected && element.contains(record.figure) && revision !== record.revision) void renderLatest(record);
     }
   }
   const view = element.ownerDocument?.defaultView;
@@ -61,6 +74,7 @@ export function mountCurriculumDiagrams(element, { renderDiagram = renderCurricu
   function cleanup() {
     if (!active) return;
     active = false;
+    records.forEach(record => record.controller?.abort());
     observer?.disconnect();
     if (!Observer) view?.removeEventListener('resize', resize);
     if (mounted.get(element) === cleanup) mounted.delete(element);

@@ -86,7 +86,7 @@ or provider integrations.
 
 Verified on 2026-10-26 against the pinned curriculum revision:
 
-- 51 tests passed, including all 2,904 catalog entries and all 471 quiz/assessment files.
+- 57 tests passed, including all 2,904 catalog entries and all 471 quiz/assessment files.
 - All 515 Mermaid diagrams render with Pele at 720 px and 320 px. Labels keep their text size; diagrams that need more width scroll inside their own viewport.
 - All 9,364 snapshot files and their built copies match their recorded byte lengths and SHA-256 hashes.
 - The built artifact's secret scan passed. Exact documented Docker proxy sentinels and the public AWS example identifier are recognized as teaching fixtures.

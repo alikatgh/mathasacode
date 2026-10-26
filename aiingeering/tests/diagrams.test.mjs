@@ -46,6 +46,18 @@ function readableSVG(result) {
   assert.deepEqual(result.links, []);
 }
 
+function objectInSVG(svg, id) {
+  const object = svg.match(new RegExp(`<g class="(?:pele-node|pele-cluster)(?: [^"]*)?" data-id="${id}"[^>]*>[\\s\\S]*?</g>`))?.[0];
+  assert.ok(object, `Missing rendered node or cluster ${id}`);
+  return object;
+}
+
+function labelInSVG(svg, id) {
+  const label = objectInSVG(svg, id).match(/<text\b[^>]*class="pele-(?:label|cluster-label)"[^>]*>/)?.[0];
+  assert.ok(label, `Missing rendered label ${id}`);
+  return label;
+}
+
 test('Markdown inventory includes nested Mermaid fences without mistaking other code for diagrams', () => {
   const nested = '> ```mermaid\n> graph LR\n> A --> B\n> ```\n\n- item\n\n  ```mermaid\n  graph TD\n  B --> C\n  ```\n\n```text\ngraph LR\nC --> D\n```';
   assert.deepEqual(mermaidBlocks(nested), ['graph LR\nA --> B', 'graph TD\nB --> C']);
@@ -161,6 +173,105 @@ test('prefixes and requested widths are bounded without shrinking diagram labels
   }
 });
 
+test('Vision Transformer authored pastel fills get readable foregrounds without changing their colors', async () => {
+  const source = mermaidBlocks(readFileSync(join(contentRoot, 'phases/04-computer-vision/14-vision-transformers/docs/en.md'), 'utf8'))[0];
+  const result = await renderCurriculumDiagram(source);
+  assert.equal(result.contrastAdjustments, 3);
+  assert.deepEqual(result.unresolvedFills, []);
+  for (const [id, fill] of [['PATCH', '#dbeafe'], ['ENC', '#fef3c7'], ['HEAD', '#dcfce7']]) {
+    assert.ok(objectInSVG(result.svg, id).includes(`fill:${fill};`));
+    assert.match(labelInSVG(result.svg, id), /style="fill:#000;"/);
+  }
+  assert.doesNotMatch(labelInSVG(result.svg, 'IMG'), /style=|fill=/);
+});
+
+test('custom fill contrast uses sRGB luminance for short/long hex and CSS named colors', async () => {
+  const cases = [
+    ['#123', '#fff'], ['#ffff', '#000'], ['#000000ff', '#fff'],
+    ['#ff0000', '#000'], ['#777', '#000'], ['aliceblue', '#000'],
+    ['DarkSlateGray', '#fff'], ['rebeccapurple', '#fff'],
+  ];
+  for (const [fill, foreground] of cases) {
+    const result = await renderCurriculumDiagram(`graph LR\nA[Label]\nstyle A fill:${fill}`);
+    assert.equal(result.contrastAdjustments, 1, fill);
+    assert.deepEqual(result.unresolvedFills, []);
+    assert.ok(objectInSVG(result.svg, 'A').includes(`fill:${fill};`));
+    assert.ok(labelInSVG(result.svg, 'A').includes(`fill:${foreground};`));
+  }
+});
+
+test('direct fill overrides class fill, while explicit class and direct label colors remain authored', async () => {
+  const result = await renderCurriculumDiagram('graph LR\nA:::base --> B:::base\nB --> C:::ink\nC --> D\nD --> E\nclassDef base fill:#123\nclassDef ink fill:#123,color:#f0f\nstyle A fill:#eee\nstyle C fill:#eee\nstyle E fill:#eee,color:#135');
+  assert.equal(result.contrastAdjustments, 2);
+  assert.match(labelInSVG(result.svg, 'A'), /fill:#000;/);
+  assert.match(labelInSVG(result.svg, 'B'), /fill:#fff;/);
+  assert.match(labelInSVG(result.svg, 'C'), /fill:#f0f;/);
+  assert.match(labelInSVG(result.svg, 'E'), /fill:#135;/);
+  assert.doesNotMatch(labelInSVG(result.svg, 'D'), /style=|fill=/);
+  const inherited = await renderCurriculumDiagram('graph LR\nA:::custom --> B\nclassDef default fill:#eee,color:#135\nclassDef custom fill:#123');
+  assert.equal(inherited.contrastAdjustments, 0);
+  assert.match(labelInSVG(inherited.svg, 'A'), /fill:#135;/);
+  assert.match(labelInSVG(inherited.svg, 'B'), /fill:#135;/);
+  const defaults = await renderCurriculumDiagram('graph LR\nA --> B\nclassDef default fill:#eee');
+  assert.equal(defaults.contrastAdjustments, 2);
+  assert.match(labelInSVG(defaults.svg, 'A'), /fill:#000;/);
+});
+
+test('subgraph titles pair with opaque class/direct fills while explicit opacity and color remain authored', async () => {
+  const source = 'graph LR\nsubgraph Light\nA --> B\nend\nsubgraph Dark\nC --> D\nend\nsubgraph Plain\nE --> F\nend\nsubgraph Explicit\nG --> H\nend\nsubgraph Transparent\nI --> J\nend\nstyle Light fill:#eee\nclassDef dark fill:#123\nclass Dark dark\nstyle Explicit fill:#eee,color:#135\nstyle Transparent fill:#eee,fill-opacity:0.5';
+  const result = await renderCurriculumDiagram(source);
+  assert.equal(result.contrastAdjustments, 2);
+  for (const [id, foreground] of [['Light', '#000'], ['Dark', '#fff']]) {
+    assert.ok(objectInSVG(result.svg, id).includes('fill-opacity:1;'));
+    assert.ok(labelInSVG(result.svg, id).includes(`fill:${foreground};`));
+  }
+  assert.doesNotMatch(objectInSVG(result.svg, 'Plain'), /fill-opacity:1|style="fill:/);
+  assert.match(labelInSVG(result.svg, 'Explicit'), /fill:#135;/);
+  assert.doesNotMatch(objectInSVG(result.svg, 'Explicit'), /fill-opacity:1/);
+  assert.ok(objectInSVG(result.svg, 'Transparent').includes('fill-opacity:0.5;'));
+  assert.doesNotMatch(labelInSVG(result.svg, 'Transparent'), /style=/);
+  assert.deepEqual(result.unresolvedFills, [{ id: 'Transparent', fill: '#eee', reason: 'authored-transparency' }]);
+});
+
+test('the authored translucent blue overlay keeps its fill and theme foreground on both reader backdrops', async () => {
+  const source = mermaidBlocks(readFileSync(join(contentRoot, 'manuals/docker-sandboxes-101/research/sources/docs-sandboxes.md'), 'utf8')).find(source => source.includes('fill:#3b82f622'));
+  assert.ok(source);
+  const result = await renderCurriculumDiagram(source);
+  assert.deepEqual(result.unresolvedFills, [{ id: 'host', fill: '#3b82f622', reason: 'authored-transparency' }]);
+  assert.ok(objectInSVG(result.svg, 'host').includes('fill:#3b82f622;'));
+  assert.doesNotMatch(objectInSVG(result.svg, 'host'), /fill-opacity:1/);
+  assert.match(labelInSVG(result.svg, 'host'), /style="fill:var\(--_fg\);"/);
+  // Reader neutral OKLCH tokens: with zero chroma, linear sRGB is L^3.
+  // Read the actual token file so the backdrop check follows theme changes.
+  const theme = readFileSync(new URL('../../site/styles/reui-theme.css', import.meta.url), 'utf8');
+  const luminance = rgb => rgb.map(channel => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4).reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+  for (const selector of [':root', '.dark']) {
+    const block = theme.slice(theme.indexOf(`${selector} {`)).split('}')[0];
+    const neutral = name => {
+      const match = block.match(new RegExp(`--${name}: oklch\\(([\\d.]+) 0 0\\)`));
+      assert.ok(match, `Expected neutral reader ${selector} ${name}`);
+      const linear = Number(match[1]) ** 3;
+      return linear <= 0.0031308 ? linear * 12.92 : 1.055 * linear ** (1 / 2.4) - 0.055;
+    };
+    const background = neutral('background'), foreground = neutral('foreground');
+    const alpha = 0x22 / 255 * 0.5; // authored alpha times Pele's retained cluster opacity
+    const blended = [0x3b, 0x82, 0xf6].map(channel => channel / 255 * alpha + background * (1 - alpha));
+    const light = Math.max(luminance(blended), luminance([foreground, foreground, foreground]));
+    const dark = Math.min(luminance(blended), luminance([foreground, foreground, foreground]));
+    assert.ok((light + 0.05) / (dark + 0.05) >= 4.5, `${selector} overlay label contrast`);
+  }
+});
+
+test('aborted renders stop before source work and again after an awaited type load', async () => {
+  const alreadyAborted = new AbortController();
+  alreadyAborted.abort();
+  await assert.rejects(renderCurriculumDiagram(null, { signal: alreadyAborted.signal }), { name: 'AbortError' });
+  const duringLoad = new AbortController();
+  const pending = renderCurriculumDiagram('graph LR\nA --> B', { signal: duringLoad.signal });
+  duringLoad.abort();
+  await assert.rejects(pending, { name: 'AbortError' });
+});
+
 test('source, edge count, output dimensions and invalid syntax have explicit rejection paths', async () => {
   await assert.rejects(renderCurriculumDiagram('graph LR\n' + ' '.repeat(limits.source)), /source.*size limit/);
   await assert.rejects(renderCurriculumDiagram('graph LR\n' + Array.from({ length: limits.edges + 1 }, (_, index) => `a${index} --> a${index + 1}`).join('\n')), /edge|limit/i);
@@ -174,7 +285,8 @@ test('source, edge count, output dimensions and invalid syntax have explicit rej
 test('every imported Mermaid fence renders with Pele at 720px and 320px', { timeout: 15000 }, async context => {
   const diagrams = inventory();
   assert.ok(diagrams.length >= 515, `Unexpectedly small inventory: ${diagrams.length}`);
-  const types = {}; const failures = []; const adapted = []; const themed = [];
+  const types = {}; const failures = []; const adapted = []; const themed = []; const unresolved = [];
+  let contrastAdjustments = 0; let contrastDiagrams = 0;
   let renders = 0; let overflowing = 0;
   for (const { path, index, source } of diagrams) {
     for (const width of [720, 320]) {
@@ -186,11 +298,14 @@ test('every imported Mermaid fence renders with Pele at 720px and 320px', { time
           types[result.type] = (types[result.type] || 0) + 1;
           if (result.adaptedLabels) adapted.push(`${path}#${index}`);
           if (result.ignoredConfiguration) themed.push(`${path}#${index}`);
+          contrastAdjustments += result.contrastAdjustments;
+          contrastDiagrams += Number(result.contrastAdjustments > 0);
+          unresolved.push(...result.unresolvedFills.map(fill => ({ path, index, ...fill })));
         }
       } catch (error) { failures.push({ path, index, width, error: error.message }); }
     }
   }
-  context.diagnostic(JSON.stringify({ diagrams: diagrams.length, renders, types, adaptedLabels: adapted.length, ignoredThemes: themed.length, overflowing, failures }));
+  context.diagnostic(JSON.stringify({ diagrams: diagrams.length, renders, types, adaptedLabels: adapted.length, ignoredThemes: themed.length, contrastAdjustments, contrastDiagrams, unresolved, overflowing, failures }));
   assert.deepEqual(failures, [], 'Every failure is reported with source path, block index and width');
   assert.equal(renders, diagrams.length * 2);
   assert.deepEqual(types, { flowchart: 479, state: 7, sequence: 27, class: 1, timeline: 1 });
@@ -199,4 +314,5 @@ test('every imported Mermaid fence renders with Pele at 720px and 320px', { time
     'phases/19-capstone-projects/64-chunking-strategies-advanced/docs/en.md#0',
   ]);
   assert.equal(themed.length, 68);
+  assert.deepEqual(unresolved, [{ path: 'manuals/docker-sandboxes-101/research/sources/docs-sandboxes.md', index: 1, id: 'host', fill: '#3b82f622', reason: 'authored-transparency' }]);
 });

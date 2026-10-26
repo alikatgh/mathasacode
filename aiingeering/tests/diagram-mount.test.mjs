@@ -64,14 +64,20 @@ test('commits a Pele diagram at natural dimensions and retains the exact authore
   assert.equal(f.disconnected, true);
 });
 
-test('a slower previous-width render cannot overwrite a newer diagram', async () => {
+test('resize bursts keep one request in flight and render only the latest width', async () => {
   const f = fixture();
   const jobs = [];
-  const cleanup = mountCurriculumDiagrams(f.host, { renderDiagram: () => new Promise(resolve => jobs.push(resolve)) });
-  f.resize(320);
-  jobs[1](graphic('<svg>new</svg>'));
+  const cleanup = mountCurriculumDiagrams(f.host, { renderDiagram: (_, options) => new Promise(resolve => jobs.push({ resolve, options })) });
+  for (let width = 719; width >= 320; width--) f.resize(width);
+  assert.equal(jobs.length, 1, 'obsolete widths must not queue renderer work');
+  assert.equal(jobs[0].options.signal.aborted, true);
+  jobs[0].resolve(graphic('<svg>old</svg>'));
   await settle();
-  jobs[0](graphic('<svg>old</svg>'));
+  assert.equal(f.output.innerHTML, '', 'obsolete output is never committed');
+  assert.equal(jobs.length, 2);
+  assert.equal(jobs[1].options.width, 320);
+  assert.equal(jobs[1].options.signal.aborted, false);
+  jobs[1].resolve(graphic('<svg>new</svg>'));
   await settle();
   assert.equal(f.output.innerHTML, '<svg>new</svg>');
   cleanup();
