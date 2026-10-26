@@ -24,6 +24,10 @@ are preserved in `content/`. Reading, quiz grading, figures, and Mermaid work
 from local static assets. Code is displayed and downloaded; the reader does not
 execute lesson programs or call AI providers. Progress stays in this browser.
 
+Lesson code and source files reuse Math as Code's ReUI/Shiki viewer, with local
+syntax highlighting, line numbers, folding, wrapping and exact-source copying.
+Oversized blocks and unavailable enhancements retain readable plain code.
+
 `import-manifest.json` pins source revision
 `3f9715c62a3bedcffb68a260f1a65ee2dd9cc10a` and records every imported path, byte
 length and SHA-256. It also lists excluded dotfiles/private repository metadata.
@@ -78,7 +82,7 @@ or provider integrations.
 
 Verified on 2026-10-26 against the pinned curriculum revision:
 
-- 30 tests passed, including all 2,904 catalog entries and all 471 quiz/assessment files.
+- 35 tests passed, including all 2,904 catalog entries and all 471 quiz/assessment files.
 - All 9,364 snapshot files and their built copies match their recorded byte lengths and SHA-256 hashes.
 - The built artifact's secret scan passed. Exact documented Docker proxy sentinels and the public AWS example identifier are recognized as teaching fixtures.
 - Desktop and 390 px browser checks covered lesson rendering, search/navigation, manual and cheatsheet figures, interactive calculations, theme, quiz scoring, completion persistence and explainer scenario/reset controls.
