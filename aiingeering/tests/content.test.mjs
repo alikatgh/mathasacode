@@ -104,11 +104,12 @@ test('math renders with KaTeX while currency, code spans and code blocks stay li
   assert.doesNotMatch(renderContent('$\\href{javascript:alert(1)}{click}$', source, catalog).html, /href="javascript:/i);
 });
 
-test('figures retain the entire configuration and Mermaid keeps a readable source fallback', () => {
+test('figures retain the entire configuration and diagrams keep a readable source fallback', () => {
   const { html } = renderContent('```figure\nkv-cache-sizer {"layers":32,"caption":"<safe>"}\n```\n\n```mermaid\ngraph LR\n A[Input] --> B[Output]\n```', source, catalog);
   assert.match(html, /class="lesson-figure" data-figure="kv-cache-sizer \{&quot;layers&quot;:32,&quot;caption&quot;:&quot;&lt;safe&gt;&quot;\}"/);
   assert.match(html, /class="figure-status"/);
-  assert.match(html, /class="mermaid-output"/);
+  assert.match(html, /class="diagram-output"/);
+  assert.match(html, /class="curriculum-diagram-viewport" role="region" aria-label="Scrollable diagram" tabindex="0"/);
   assert.match(html, /<details class="diagram-source" open>/);
   assert.match(html, /A\[Input\] --&gt; B\[Output\]/);
 });

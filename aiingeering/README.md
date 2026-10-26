@@ -20,13 +20,17 @@ The reader includes phase lessons, certification lessons and assessments,
 projects and their stages, manuals, cheatsheets, practice, learning paths,
 glossary, research, skills, translations, and a browser for every imported file.
 All source text, code, tests, outputs, fixtures, captured evidence, and licenses
-are preserved in `content/`. Reading, quiz grading, figures, and Mermaid work
+are preserved in `content/`. Reading, quiz grading, figures, and diagrams work
 from local static assets. Code is displayed and downloaded; the reader does not
 execute lesson programs or call AI providers. Progress stays in this browser.
 
 Lesson code and source files reuse Math as Code's ReUI/Shiki viewer, with local
 syntax highlighting, line numbers, folding, wrapping and exact-source copying.
 Oversized blocks and unavailable enhancements retain readable plain code.
+
+Mermaid diagram sources are drawn by Pele, the same renderer used by Math as
+Code. Local lazy modules, shared theme tokens and layouts sized to the reader
+keep labels readable. Original diagram sources remain available in a disclosure.
 
 `import-manifest.json` pins source revision
 `3f9715c62a3bedcffb68a260f1a65ee2dd9cc10a` and records every imported path, byte
@@ -65,8 +69,8 @@ directory with the parent Math site's Wrangler configuration.
 
 Curriculum: Copyright (c) 2026 Rohit Ghumare, MIT — see `content/LICENSE`.
 Math as Code: see `../LICENSE.md`. ReUI/shadcn notices remain with the reused
-parent components. Mermaid 11.12.0 is vendored under MIT; see
-`vendor/MERMAID-LICENSE`. Additional upstream notices are preserved at their
+parent components. Pele is MIT licensed; its notice is included in the static
+build as `PELE-LICENSE.txt`. Additional upstream notices are preserved at their
 original paths in the imported snapshot.
 
 ## Updating the snapshot
@@ -82,7 +86,8 @@ or provider integrations.
 
 Verified on 2026-10-26 against the pinned curriculum revision:
 
-- 35 tests passed, including all 2,904 catalog entries and all 471 quiz/assessment files.
+- 57 tests passed, including all 2,904 catalog entries and all 471 quiz/assessment files.
+- All 515 Mermaid diagrams render with Pele at 720 px and 320 px. Labels keep their text size; diagrams that need more width scroll inside their own viewport.
 - All 9,364 snapshot files and their built copies match their recorded byte lengths and SHA-256 hashes.
 - The built artifact's secret scan passed. Exact documented Docker proxy sentinels and the public AWS example identifier are recognized as teaching fixtures.
 - Desktop and 390 px browser checks covered lesson rendering, search/navigation, manual and cheatsheet figures, interactive calculations, theme, quiz scoring, completion persistence and explainer scenario/reset controls.

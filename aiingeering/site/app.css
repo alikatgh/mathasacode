@@ -118,6 +118,28 @@
 .engineering-prose th { background: var(--surface); font-weight: 500; }
 .engineering-prose img, .engineering-prose svg { max-width: 100%; height: auto; }
 .engineering-prose figure { max-width: 100%; margin: 24px 0; overflow-x: auto; }
+.engineering-prose .curriculum-diagram {
+  --pele-bg: var(--background);
+  --pele-fg: var(--foreground);
+  --pele-muted: var(--muted-foreground);
+  --pele-line: var(--muted-foreground);
+  --pele-surface: var(--accent);
+  --pele-surface-alt: var(--muted);
+  --pele-border: var(--border);
+  --pele-accent: var(--primary);
+  --pele-font: var(--font-sans);
+  min-width: 0;
+  overflow: visible;
+}
+.curriculum-diagram-viewport { min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; padding: 8px 0; }
+.curriculum-diagram-viewport:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-radius: 3px; }
+.diagram-output { margin-inline: auto; }
+.engineering-prose .diagram-output > svg { display: block; width: 100%; height: 100%; max-width: none; }
+.engineering-prose .diagram-source { margin-top: 12px; color: var(--muted-foreground); font-size: 12px; }
+.engineering-prose .diagram-source summary { width: fit-content; cursor: pointer; }
+.engineering-prose .diagram-source summary:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+.engineering-prose .diagram-source pre { font-size: 11px; }
+.engineering-prose .diagram-status { color: var(--muted-foreground); font-size: 12px; }
 .engineering-prose figcaption { margin-top: 10px; font-size: 11px; color: var(--muted-foreground); }
 .engineering-prose iframe { display: block; max-width: 100%; border: 1px solid var(--border); border-radius: 4px; }
 .engineering-prose details { margin: 20px 0; padding: 13px 16px; border: 1px solid var(--border); border-radius: 4px; }
