@@ -398,7 +398,7 @@ export function renderContent(text, path, catalog = {}) {
         const language = (lang || '').split(/\s+/)[0].toLowerCase();
         if (language === 'math') return '<div class="math-display">' + renderMath(code, true) + '</div>\n';
         if (language === 'figure') return '<div class="lesson-figure" data-figure="' + escapeHTML(code.trim()) + '"><p class="figure-status">Loading interactive figure: ' + escapeHTML(code.trim().split(/\s+/)[0]) + '…</p></div>\n';
-        if (language === 'mermaid') return '<figure class="curriculum-diagram"><div class="mermaid-output" aria-label="Diagram"></div><details class="diagram-source" open><summary>Diagram source</summary><pre><code class="language-mermaid">' + escapeHTML(code) + '</code></pre></details></figure>\n';
+        if (language === 'mermaid') return '<figure class="curriculum-diagram"><div class="curriculum-diagram-viewport" role="region" aria-label="Scrollable diagram" tabindex="0"><div class="diagram-output" aria-label="Diagram"></div></div><p class="diagram-status" role="status" hidden></p><details class="diagram-source" open><summary>Diagram source</summary><pre><code class="language-mermaid">' + escapeHTML(code) + '</code></pre></details></figure>\n';
         return sourceCode(code, language);
       }
     }
@@ -432,7 +432,6 @@ function loadScript(url) {
   return promise;
 }
 
-let diagramID = 0;
 const roots = new WeakMap();
 
 /** Mount imported widgets in this article; release timers/listeners on navigation. */
@@ -440,14 +439,14 @@ export async function hydrateContent(element) {
   if (!element || typeof window === 'undefined') return () => {};
   roots.get(element)?.();
   let disposed = false;
-  let observer;
+  let cleanupDiagrams;
   const timers = new Set();
   const copyLabels = new WeakMap();
   const copyTimers = new WeakMap();
   const cleanup = () => {
     if (disposed) return;
     disposed = true;
-    observer?.disconnect();
+    cleanupDiagrams?.();
     element.removeEventListener('click', action);
     element.removeEventListener('keydown', keyboardAction);
     timers.forEach(timer => clearTimeout(timer));
@@ -528,40 +527,9 @@ export async function hydrateContent(element) {
   const diagrams = [...element.querySelectorAll('.curriculum-diagram')];
   if (diagrams.length) tasks.push((async () => {
     try {
-      if (!window.mermaid) await loadScript('./assets/mermaid.min.js');
+      const { mountCurriculumDiagrams } = await import('./diagram-mount.mjs');
       if (!active()) return;
-      let rendering = false;
-      let pending = false;
-      const render = async () => {
-        if (!active()) return;
-        if (rendering) { pending = true; return; }
-        rendering = true;
-        try {
-          const dark = document.documentElement.dataset.theme === 'dark' || document.documentElement.classList.contains('dark');
-          window.mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: dark ? 'dark' : 'neutral', fontFamily: 'inherit', suppressErrorRendering: true, flowchart: { htmlLabels: false } });
-          for (const diagram of diagrams) {
-            if (!active()) break;
-            const code = diagram.querySelector('code.language-mermaid')?.textContent;
-            if (!code) continue;
-            try {
-              const { svg } = await window.mermaid.render('aifs-diagram-' + ++diagramID, code);
-              if (!active()) break;
-              diagram.querySelector('.mermaid-output').innerHTML = svg;
-              diagram.querySelector('.diagram-source').open = false;
-            } catch {
-              if (active()) diagram.querySelector('.diagram-source').open = true;
-            }
-          }
-        } finally {
-          rendering = false;
-          if (pending) { pending = false; void render(); }
-        }
-      };
-      await render();
-      if (active()) {
-        observer = new MutationObserver(() => { void render(); });
-        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
-      }
+      cleanupDiagrams = mountCurriculumDiagrams(element);
     } catch { /* Diagram source is the accessible offline fallback. */ }
   })());
   await Promise.allSettled(tasks);
