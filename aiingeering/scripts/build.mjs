@@ -79,7 +79,7 @@ for (const page of sheets.pages.filter(page => page.file !== 'index.html')) {
 const wireCatalog = { ...catalog, files: catalog.files.map(({ path, bytes }) => ({ path, bytes })), groups: catalog.groups.map(group => ({ ...group, entries: group.entries.map(entry => entry.path) })) };
 writeFileSync(join(out, 'catalog.json'), JSON.stringify(wireCatalog));
 writeFileSync(join(out, 'import-manifest.json'), JSON.stringify(manifest));
-await build({ entryPoints: [join(root, 'site/app.jsx')], outfile: join(out, 'assets/app.mjs'), bundle: true, minify: true, format: 'esm', target: ['es2022'], jsx: 'automatic', loader: { '.css': 'empty' }, define: { 'process.env.NODE_ENV': '"production"' }, legalComments: 'linked' });
+await build({ entryPoints: { app: join(root, 'site/app.jsx') }, outdir: join(out, 'assets'), outExtension: { '.js': '.mjs' }, chunkNames: 'chunks/[name]-[hash]', splitting: true, bundle: true, minify: true, format: 'esm', target: ['es2022'], jsx: 'automatic', loader: { '.css': 'empty' }, define: { 'process.env.NODE_ENV': '"production"' }, legalComments: 'linked' });
 const tailwind = join(dirname(require.resolve('@tailwindcss/cli/package.json')), 'dist/index.mjs');
 execFileSync(process.execPath, [tailwind, '-i', join(root, 'site/app.css'), '-o', join(out, 'assets/app.css'), '--minify'], { cwd: root, stdio: 'inherit', timeout: 60000 });
 copy(join(root, 'vendor/mermaid.min.js'), join(out, 'assets/mermaid.min.js'));

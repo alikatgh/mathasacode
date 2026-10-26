@@ -11,6 +11,10 @@ import { contentURL, routeURL, renderContent, hydrateContent } from './content.m
 import './app.css';
 import { normalizeQuiz, answerIsCorrect } from './quiz.mjs';
 import { Explainer } from './explainers.jsx';
+import { isEnhanceableSource, languageForFile } from './lesson-code-model.mjs';
+
+let lessonCodePromise;
+const loadLessonCode = () => lessonCodePromise ||= import('./lesson-code.jsx').catch(error => { lessonCodePromise = undefined; throw error; });
 
 const STORAGE = 'aiingeering:progress:v1';
 const THEME = 'math-as-code-theme-v1';
@@ -122,8 +126,11 @@ function Markdown({ html, path, onNavigate }) {
   useEffect(() => {
     let alive = true;
     let cleanup;
+    let cleanupCode;
     Promise.resolve(hydrateContent(host.current)).then(value => { if (alive) cleanup = value; else if (typeof value === 'function') value(); }).catch(() => { /* Static lesson remains readable if an optional enhancement cannot load. */ });
-    return () => { alive = false; if (typeof cleanup === 'function') cleanup(); };
+    const element = host.current;
+    if (element.querySelector('pre > code')) loadLessonCode().then(module => { if (alive && element.isConnected) cleanupCode = module.enhanceLessonCode(element); }).catch(() => { /* Preserve the original code when the viewer cannot load. */ });
+    return () => { alive = false; cleanupCode?.(); if (typeof cleanup === 'function') cleanup(); };
   }, [html, path]);
   return <div className="engineering-prose" ref={host} dangerouslySetInnerHTML={{ __html: html }} onClick={event => {
     const link = event.target.closest?.('a[href]');
@@ -131,6 +138,17 @@ function Markdown({ html, path, onNavigate }) {
     const url = new URL(link.href, location.href);
     if (url.origin === location.origin && url.pathname === location.pathname && (url.searchParams.has('path') || url.searchParams.has('folder'))) { event.preventDefault(); onNavigate(`${url.pathname}${url.search}${url.hash}`); }
   }} />;
+}
+
+function SourceCode({ source, path }) {
+  const [Viewer, setViewer] = useState(null);
+  useEffect(() => {
+    let active = true;
+    if (isEnhanceableSource(source)) loadLessonCode().then(module => { if (active) setViewer(() => module.LessonCode); }).catch(() => {});
+    return () => { active = false; };
+  }, [source]);
+  if (Viewer) return <div className="engineering-code-host"><Viewer source={source} language={languageForFile(path)} label={basename(path)} /></div>;
+  return <div className="engineering-code-view"><div className="engineering-code-heading"><span>{path.split('.').pop()?.toUpperCase() || 'TEXT'}</span><span>{source?.split('\n').length.toLocaleString()} lines</span></div><pre tabIndex={0} aria-label={`Source of ${basename(path)}`}><code>{source}</code></pre></div>;
 }
 
 function FileContent({ resource, path, catalog, navigate, onQuizComplete }) {
@@ -143,7 +161,7 @@ function FileContent({ resource, path, catalog, navigate, onQuizComplete }) {
   if (/\.pdf$/i.test(path)) return <div className="engineering-asset"><p>Read the PDF in your browser or download a copy.</p><Button asChild variant="outline"><a href={contentURL(path)} target="_blank" rel="noreferrer">Open PDF <ExternalLink /></a></Button></div>;
   if (binaryPattern.test(path)) return <div className="engineering-state"><File /><h2>{basename(path)}</h2><p>This original asset is available to download.</p><Button asChild><a href={contentURL(path)} download><Download />Download file</a></Button></div>;
   if (resource.data !== undefined) return <div className="engineering-record"><StructuredValue value={resource.data} catalog={catalog} navigate={navigate} /><details><summary>View original JSON</summary><pre><code>{resource.text}</code></pre></details></div>;
-  return <div className="engineering-code-view"><div className="engineering-code-heading"><span>{path.split('.').pop()?.toUpperCase() || 'TEXT'}</span><span>{resource.text?.split('\n').length.toLocaleString()} lines</span></div><pre tabIndex={0} aria-label={`Source of ${basename(path)}`}><code>{resource.text}</code></pre></div>;
+  return <SourceCode key={path} source={resource.text} path={path} />;
 }
 
 function StructuredValue({ value, catalog, navigate, depth = 0 }) {
