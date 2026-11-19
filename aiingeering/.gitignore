@@ -1,0 +1,4 @@
+dist/
+node_modules/
+# Upstream compiled fixtures and capture logs are intentional teaching material.
+!content/**
