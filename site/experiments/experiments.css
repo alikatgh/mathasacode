@@ -13,7 +13,7 @@
 .experiment__heading { gap: 5px; }
 .experiment__eyebrow { color: var(--primary); font: 10px/1.5 var(--font-mono); text-transform: uppercase; letter-spacing: .07em; }
 .experiment__title { font-size: 17px; font-weight: 550; line-height: 1.4; }
-.experiment__description, .experiment__caption { max-width: 76ch; margin: 0; color: var(--muted-foreground); font-size: 13px; line-height: 1.65; }
+.experiment__description, .experiment__caption { margin: 0; color: var(--muted-foreground); font-size: 13px; line-height: 1.65; }
 .experiment__body { min-width: 0; }
 .experiment__workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(210px, .65fr); gap: 24px; align-items: center; }
 .experiment__plot { display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; border-radius: 5px; background: color-mix(in srgb, var(--muted) 32%, transparent); }
@@ -24,6 +24,12 @@
 .experiment-handle { cursor: grab; touch-action: none; outline: none; }
 .experiment-handle:active { cursor: grabbing; }
 .experiment-handle:focus-visible .experiment-handle__ring { stroke-width: 3; opacity: 1; }
+.experiment-handle:focus-visible .experiment-handle__shaft { stroke: var(--ring); opacity: .15; }
+.experiment-handle[data-arrow] .experiment-handle__grip { opacity: 0; }
+.experiment-handle[data-arrow]:is(:hover, :focus-visible, [data-dragging="true"]) .experiment-handle__grip { opacity: 1; }
+@media (hover: none) {
+  .experiment-handle[data-arrow] .experiment-handle__grip { opacity: 1; }
+}
 .experiment-formula { margin: 14px 0 0; font: 13px/1.8 var(--font-mono); overflow-wrap: anywhere; }
 .experiment-formula strong { color: var(--scene-b); font-weight: 600; }
 .experiment-drag-hint { margin: 6px 0 0; color: var(--muted-foreground); font-size: 11px; line-height: 1.6; }

@@ -17,8 +17,9 @@ import {
 } from './components/reui/code-block/code-block';
 import {
   detectExampleLanguage, exampleLanguageLabels, exampleLanguages, exampleLines,
-  languagePreferenceKey, readExampleLanguage, saveExampleLanguage,
+  changeExampleLanguage, exampleLanguageStorage, readExampleLanguage, subscribeExampleLanguage,
 } from './example-model.mjs';
+import { TraceVisualizerPortal } from './trace-visualizer.jsx';
 
 const prepared = new WeakMap();
 const subscribeToNothing = () => () => {};
@@ -73,10 +74,6 @@ const labels = {
     },
   },
 };
-
-function browserStorage(browser) {
-  try { return browser?.localStorage; } catch { return undefined; }
-}
 
 function readTokens(node, source) {
   try { return exampleLines(source, JSON.parse(node?.textContent || 'null')); }
@@ -397,6 +394,8 @@ function RunnableExample({ example, language, onLanguageChange, onLanguageMenuAn
       {supported && <p id={noteId} className={`reui-example__runner-note${info.remote ? ' reui-example__runner-note--remote' : !editing && !result && !executable.note ? ' sr-only' : ''}`}>
         {executable.note && <span>{executable.note} </span>}{(editing || result || info.remote) && info.note}
       </p>}
+      <TraceVisualizerPortal example={example} trace={trace} source={source} language={language}
+        onStep={step => updateTrace({ ...trace, step: traceStep(step, trace?.frames.length || 0) })} />
       {trace && <CodeTrace trace={trace} source={source} text={text.trace}
         onStep={step => updateTrace({ ...trace, step: traceStep(step, trace.frames.length) })} />}
       {result && <div className="reui-example__output" data-run-status={result.status}>
@@ -491,7 +490,7 @@ export function CodeExamplePortals({ examples, controller }) {
   const doc = examples[0]?.host.ownerDocument || globalThis.document;
   const browser = doc?.defaultView;
   const text = labels[doc?.documentElement.lang.startsWith('zh') ? 'zh' : 'en'];
-  const storage = useRef(browserStorage(browser));
+  const storage = useRef(exampleLanguageStorage(browser));
   const [language, setLanguage] = useState(() => readExampleLanguage(storage.current,
     examples.find(example => !example.standalone)?.defaultLanguage || 'javascript'));
   const selectedLanguage = useRef(language);
@@ -510,7 +509,7 @@ export function CodeExamplePortals({ examples, controller }) {
     const recorded = anchor?.anchor ? anchor : readLanguageAnchor(anchor);
     pendingAnchor.current = recorded;
     selectedLanguage.current = value;
-    if (persist) saveExampleLanguage(storage.current, value);
+    if (persist) changeExampleLanguage(browser, value);
     setLanguage(value);
   }
   useLayoutEffect(() => {
@@ -527,9 +526,8 @@ export function CodeExamplePortals({ examples, controller }) {
     };
   }, [language, examples, snapshot, browser]);
   useEffect(() => {
-    const handleStorage = event => {
-      if (event.key !== languagePreferenceKey || !exampleLanguages.includes(event.newValue)) return;
-      const anchor = currentVisibleExamples(examples).map(example => example.host.querySelector('.reui-example__language'))
+    return subscribeExampleLanguage(browser, value => {
+      let anchor = currentVisibleExamples(examples).map(example => example.host.querySelector('.reui-example__language'))
         .find(node => {
           const viewport = node?.closest('.reader-viewport');
           if (!viewport) return false;
@@ -537,10 +535,17 @@ export function CodeExamplePortals({ examples, controller }) {
           const bounds = viewport.getBoundingClientRect();
           return rect.bottom > bounds.top && rect.top < bounds.bottom;
         });
-      selectLanguage(event.newValue, anchor, false);
-    };
-    browser?.addEventListener('storage', handleStorage);
-    return () => browser?.removeEventListener('storage', handleStorage);
+      if (!anchor) {
+        const viewport = doc?.querySelector('.reader-viewport');
+        const bounds = viewport?.getBoundingClientRect();
+        anchor = Array.from(viewport?.querySelectorAll('.reader-topic:not([hidden]) .reader-page > :not(script)') || [])
+          .find(node => {
+            const rect = node.getBoundingClientRect();
+            return rect.bottom > bounds.top && rect.top < bounds.bottom;
+          });
+      }
+      selectLanguage(value, anchor, false);
+    });
   }, [browser, examples]);
   return currentVisibleExamples(examples).map(example => createPortal(
     <ExampleBoundary example={example} language={language}>

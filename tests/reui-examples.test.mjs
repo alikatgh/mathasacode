@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { exampleLines, readExampleLanguage, saveExampleLanguage, languagePreferenceKey } from '../site/example-model.mjs';
+import {
+  changeExampleLanguage, exampleLines, readExampleLanguage, saveExampleLanguage,
+  languageChangeEvent, languagePreferenceKey, subscribeExampleLanguage,
+} from '../site/example-model.mjs';
 
 test('prehighlighted lines cannot replace or omit any original source content', () => {
   const source = '  const answer = "<42>";\n\treturn answer;\n';
@@ -23,4 +26,52 @@ test('language preference survives unavailable storage without accepting other l
   const unavailable = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); } };
   assert.equal(readExampleLanguage(unavailable, 'c'), 'c');
   assert.equal(saveExampleLanguage(unavailable, 'c'), false);
+});
+
+test('footer and example subscribers share valid changes without depending on storage events', () => {
+  const browser = new EventTarget();
+  const saved = new Map();
+  browser.localStorage = { getItem: key => saved.get(key), setItem: (key, value) => saved.set(key, value) };
+  const footer = [];
+  const examples = [];
+  const unsubscribeFooter = subscribeExampleLanguage(browser, value => footer.push(value));
+  const unsubscribeExamples = subscribeExampleLanguage(browser, value => examples.push(value));
+  for (const value of ['c', 'rust', 'python', 'javascript']) {
+    assert.equal(changeExampleLanguage(browser, value), true);
+    assert.equal(readExampleLanguage(browser.localStorage), value, 'reload reads the selected language');
+  }
+  assert.equal(changeExampleLanguage(browser, 'invalid'), false);
+  assert.deepEqual(footer, ['c', 'rust', 'python', 'javascript']);
+  assert.deepEqual(examples, footer);
+  unsubscribeFooter();
+  changeExampleLanguage(browser, 'c');
+  assert.equal(footer.length, 4, 'unmounted consumers stop receiving changes');
+  assert.equal(examples.at(-1), 'c');
+  unsubscribeExamples();
+});
+
+test('same-window language changes still work when storage access or writes are blocked', () => {
+  for (const blockedAt of ['access', 'write']) {
+    const browser = new EventTarget();
+    if (blockedAt === 'access') Object.defineProperty(browser, 'localStorage', { get() { throw Error('blocked'); } });
+    else browser.localStorage = { setItem() { throw Error('quota'); } };
+    const received = [];
+    const unsubscribe = subscribeExampleLanguage(browser, value => received.push(value));
+    assert.equal(changeExampleLanguage(browser, 'rust'), false);
+    assert.deepEqual(received, ['rust']);
+    unsubscribe();
+  }
+});
+
+test('external preference updates reject unrelated keys, removed values and invalid event payloads', () => {
+  const browser = new EventTarget();
+  const received = [];
+  const unsubscribe = subscribeExampleLanguage(browser, value => received.push(value));
+  for (const [key, newValue] of [[languagePreferenceKey, 'c'], ['other', 'rust'], [languagePreferenceKey, null], [languagePreferenceKey, 'unknown'], [languagePreferenceKey, 'rust']]) {
+    browser.dispatchEvent(Object.assign(new Event('storage'), { key, newValue }));
+  }
+  browser.dispatchEvent(new CustomEvent(languageChangeEvent, { detail: { language: 'unknown' } }));
+  browser.dispatchEvent(new CustomEvent(languageChangeEvent));
+  assert.deepEqual(received, ['c', 'rust']);
+  unsubscribe();
 });

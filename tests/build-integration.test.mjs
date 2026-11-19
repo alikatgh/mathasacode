@@ -27,6 +27,17 @@ test('blog and changelog render as reader resources', async () => {
   }
 });
 
+test('the cheatsheet remains one reader topic with all categories nested in its article', async () => {
+  const document = documents.find(document => document.output === 'cheatsheet.html');
+  const source = await readFile(new URL(`../${document.source}`, import.meta.url), 'utf8');
+  const result = renderDocument(source, document);
+  assert.deepEqual(result.headings.map(heading => heading.id), ['symbol-cheatsheet']);
+  assert.match(result.html, /<article class="symbol-sheet" data-symbol-sheet>/);
+  assert.match(result.html, /data-symbol-entry=/);
+  assert.match(result.html, /href="\/cheatsheet.html">Symbol cheatsheet/);
+  assert.equal(localHref('./cheatsheet.md', 'docs/blog.md'), '/cheatsheet.html');
+});
+
 test('source-relative guide links work in both nested Markdown and built pages', () => {
   assert.equal(localHref('../README.md', 'docs/ml-deep-learning.md'), '/index.html');
   assert.equal(localHref('./ml-deep-learning.md#the-final-boss', 'docs/blog.md'), '/machine-learning.html#the-final-boss');

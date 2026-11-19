@@ -14,6 +14,15 @@ function vector(value, name, dimensions) {
   return value.map((coordinate, index) => finite(coordinate, `${name}[${index}]`));
 }
 
+// Convert SVG-local coordinates after getScreenCTM has removed responsive
+// scaling and letterboxing. Mathematical y increases upward.
+export function plotCoordinates(point, origin, scale) {
+  const [x, y] = vector([point.x, point.y], 'plot point', 2);
+  const [ox, oy] = vector(origin, 'plot origin', 2);
+  finite(scale, 'plot scale', Number.EPSILON, MAX_COORDINATE);
+  return [(x - ox) / scale, (oy - y) / scale].map(value => Math.max(-MAX_COORDINATE, Math.min(MAX_COORDINATE, value)));
+}
+
 export function dotProjection(axis, input) {
   const a = vector(axis, 'axis');
   const b = vector(input, 'input', a.length);
@@ -60,10 +69,21 @@ export function normalizeVector(input) {
   return { length, unit: coordinates.map(coordinate => coordinate / length) };
 }
 
-export function normalizationState(scale) {
+export function normalizationState(scale, direction = [4, -3]) {
   finite(scale, 'scale', 0.2, 2);
-  const input = [0, 4 * scale, -3 * scale];
+  const { unit } = normalizeVector(vector(direction, 'direction', 2));
+  const input = [0, ...unit.map(coordinate => coordinate * 5 * scale)];
   return { scale, input, ...normalizeVector(input) };
+}
+
+export function normalizationForPoint(point) {
+  const coordinates = vector(point, 'point', 2);
+  const length = Math.hypot(...coordinates);
+  if (length < 1e-9) return null;
+  return {
+    scale: Math.round(Math.max(0.2, Math.min(2, length / 5)) * 100) / 100,
+    direction: coordinates.map(coordinate => coordinate / length),
+  };
 }
 
 function matrix2(matrix) {
@@ -93,6 +113,17 @@ export function matrixTransformState(upperRight) {
     area: Math.abs(determinant),
     orientation: determinant === 0 ? 'collapsed' : determinant > 0 ? 'preserved' : 'reversed',
   };
+}
+
+export function matrixEntryForPoint(point) {
+  const [x] = vector(point, 'point', 2);
+  return Math.round(Math.max(-2, Math.min(8, x)) * 10) / 10;
+}
+
+export function unitCircleAngleForPoint(point) {
+  const [x, y] = vector(point, 'point', 2);
+  if (Math.hypot(x, y) < 1e-9) return null;
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 }
 
 export function unitCircleState(degrees) {

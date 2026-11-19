@@ -11,6 +11,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHighlighter } from 'shiki';
 import { buildRunnerAssets } from './runtime-assets.mjs';
+import { renderSymbolSheet } from './symbol-sheet.mjs';
 
 const highlighter = await createHighlighter({ themes: ['light-plus', 'dark-plus'], langs: ['javascript', 'python', 'c', 'rust'] });
 const highlighted = new Map();
@@ -22,6 +23,7 @@ export const documents = [
   { source: 'PYTHON-README.md', output: 'PYTHON-README.html', title: 'math-as-code · Python', lang: 'en', guide: true },
   { source: 'README-zh.md', output: 'README-zh.html', title: 'math-as-code · 中文版', lang: 'zh', guide: true },
   { source: 'docs/ml-deep-learning.md', output: 'machine-learning.html', title: 'ML & deep learning · Math as Code', lang: 'en', guide: true, description: 'Read a neural network training formula, unpack every symbol, and train a tiny network with runnable code.' },
+  { source: 'docs/cheatsheet.md', output: 'cheatsheet.html', title: 'Symbol cheatsheet · Math as Code', lang: 'en', cheatsheet: true, description: '89 mathematical symbols with a compact reference and detailed explanations, worked JavaScript examples, diagrams and graphs.' },
   { source: 'CONTRIBUTING.md', output: 'CONTRIBUTING.html', title: 'Contributing · math-as-code', lang: 'en' },
   { source: 'LICENSE.md', output: 'LICENSE.html', title: 'License · math-as-code', lang: 'en' },
   { source: 'docs/run-locally.md', output: 'run-locally.html', title: 'Run locally · math-as-code', lang: 'en' },
@@ -143,6 +145,7 @@ export function renderDocument(markdown, document = documents[0], { comparisons 
     }
   } });
   let content = marked.parse(markdown);
+  if (document.cheatsheet) content += renderSymbolSheet();
   // Source-only documents such as the MIT license still need a reader route.
   if (!headings.length) {
     const title = document.title.split(' · ')[0];
@@ -158,7 +161,7 @@ export function renderDocument(markdown, document = documents[0], { comparisons 
 <html lang="${document.lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(document.title)}</title>
 <meta name="description" content="${escape(description)}"><link rel="canonical" href="https://mathasacode.aulenor.com${escape(canonicalPath)}"><link rel="icon" type="image/png" href="/assets/logo.png">
 <link rel="stylesheet" href="/assets/katex.min.css"><link rel="stylesheet" href="/assets/app.css"><script type="module" src="/assets/app.mjs"></script></head>
-<body data-reader="true" data-guide="${document.guide ? 'true' : 'false'}" class="style-vega"><div class="app-loading" role="status"><div class="app-loading__brand">Math as Code</div><div class="app-loading__body">${document.lang === 'zh' ? '正在打开指南…' : 'Opening the guide…'}</div></div><noscript><style>html:has(body[data-reader="true"]){height:auto;overflow:auto}body[data-reader="true"]:not(.app-ready){height:auto;overflow:auto;padding:24px;max-width:1000px;margin:auto}body[data-reader="true"]:not(.app-ready)>:is(main,nav){display:block}.app-loading{display:none}body:not(.app-ready) main>:is(h1,h2,h3,h4){margin:30px 0 15px;font-size:1.4em;font-weight:600}body:not(.app-ready) main>:is(p,ul,ol,blockquote){margin-bottom:20px;line-height:1.8}body:not(.app-ready) .code-example__tabs{display:none}</style></noscript><a class="skip-link" href="#guide-content">${document.lang === 'zh' ? '跳至正文' : 'Skip to guide'}</a><nav aria-label="Guide versions"><a href="/">JavaScript guide</a><a href="/PYTHON-README.html">Python guide</a><a href="/README-zh.html">中文版</a><a href="https://github.com/alikatgh/mathasacode">Repository</a></nav><main id="guide-content" tabindex="-1">${content}</main></body></html>\n`;
+<body data-reader="true" data-guide="${document.guide ? 'true' : 'false'}" class="style-vega"><div class="app-loading" role="status"><div class="app-loading__brand">Math as Code</div><div class="app-loading__body">${document.lang === 'zh' ? '正在打开指南…' : 'Opening the guide…'}</div></div><noscript><style>html:has(body[data-reader="true"]){height:auto;overflow:auto}body[data-reader="true"]:not(.app-ready){height:auto;overflow:auto;padding:24px;max-width:1000px;margin:auto}body[data-reader="true"]:not(.app-ready)>:is(main,nav){display:block}.app-loading{display:none}body:not(.app-ready) main>:is(h1,h2,h3,h4){margin:30px 0 15px;font-size:1.4em;font-weight:600}body:not(.app-ready) main>:is(p,ul,ol,blockquote){margin-bottom:20px;line-height:1.8}body:not(.app-ready) .code-example__tabs{display:none}</style></noscript><a class="skip-link" href="#guide-content">${document.lang === 'zh' ? '跳至正文' : 'Skip to guide'}</a><nav aria-label="Guide versions"><a href="/">JavaScript guide</a><a href="/PYTHON-README.html">Python guide</a><a href="/README-zh.html">中文版</a><a href="/machine-learning.html">ML &amp; deep learning</a><a href="/cheatsheet.html">Symbol cheatsheet</a><a href="https://github.com/alikatgh/mathasacode">Repository</a></nav><main id="guide-content" tabindex="-1">${content}</main></body></html>\n`;
   return { html, headings, formulaCount, comparisonCount, codeCount, switcherCount };
 }
 

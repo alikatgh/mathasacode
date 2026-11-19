@@ -256,7 +256,7 @@ export function createReaderController({ main, topics, anchors = new Map() }) {
     target.focus({ preventScroll: true });
   };
 
-  function navigate(hash, { history = 'push', focus = true, restore = false } = {}) {
+  function navigate(hash, { history = 'push', focus = true, restore = false, startAtTop = false } = {}) {
     const route = resolveReaderRoute(hash, topics, anchors);
     const topic = topics[route.topicIndex];
     const page = topic?.pages[route.pageIndex];
@@ -267,7 +267,7 @@ export function createReaderController({ main, topics, anchors = new Map() }) {
     // Two distinct anchors can occupy the same retained wrapper. Compare their
     // IDs as well as the topic so each can be reached, while repeat clicks and
     // paired popstate/hashchange events preserve scroll and focus exactly.
-    if (sameTopic && activeTargetId === targetId && (!restore || activeEntryKey === destinationEntryKey)) return false;
+    if (!startAtTop && sameTopic && activeTargetId === targetId && (!restore || activeEntryKey === destinationEntryKey)) return false;
     rememberPosition();
     if (route.known && (history === 'push' || history === 'replace')) {
       const url = new URL(browser.location.href);
@@ -292,7 +292,7 @@ export function createReaderController({ main, topics, anchors = new Map() }) {
     const remembered = restore
       ? entryPositions.get(activeEntryKey) ?? routePositions.get(targetId) ?? positions.get(topic.id)
       : undefined;
-    pendingPosition = remembered !== undefined ? { top: remembered }
+    pendingPosition = startAtTop ? { top: 0 } : remembered !== undefined ? { top: remembered }
       : targetId === topic.id ? { top: sameTopic ? 0 : positions.get(topic.id) ?? 0 }
       : { targetId };
     snapshot = Object.freeze({ topicIndex: route.topicIndex, pageIndex: route.pageIndex });
@@ -353,7 +353,9 @@ export function createReaderController({ main, topics, anchors = new Map() }) {
     }
     if (!resolveReaderRoute(url.hash, topics, anchors).known) return;
     event.preventDefault();
-    navigate(url.hash);
+    // Practice can be reached by scrolling while its explanation hash stays
+    // active. This explicit action must still return to the topic beginning.
+    navigate(url.hash, { startAtTop: anchor.classList?.contains('learn-panel__read') });
   });
   const restoreRoute = event => navigate(browser.location.hash, { history: 'none', restore: event.type === 'popstate' });
   // History traversal can emit both events. Stable snapshots make the second
